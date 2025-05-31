@@ -118,6 +118,7 @@ export interface Investment {
   level: number
   costToUpgrade: number
   productionRate: number
+  productionResource: keyof Resources // New: Specifies which resource this investment produces
   name: string
   description: string
 }

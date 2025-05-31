@@ -98,8 +98,9 @@ const generateMockTerritories = (): Record<string, TerritoryDetails> => {
         position: { x, y },
         ownerId: null,
         purchaseCost: 500 + Math.floor(Math.random() * 1500), // Adjusted cost for more territories
+        // Resource yield now represents per-second amounts (smaller values)
+        resourceYield: { spice: Math.random() * 0.02 + 0.005 }, // 0.005 to 0.025 spice per second
         perks: [`+${Math.floor(Math.random() * 5 + 1)}% Spice Production`], // Smaller perks for more territories
-        resourceYield: { spice: Math.floor(Math.random() * 3 + 1) }, // Smaller yield
         name: `Sector ${String.fromCharCode(65 + x)}${y + 1}`,
       }
     }
@@ -1079,24 +1080,22 @@ export default function ArrakisGamePage() {
         })
         setItemRespawnQueue(newRespawnQueue)
 
-        // Territory Income & Investment Income
+        // Territory Income & Investment Income (now per second)
         newPlayer.territories.forEach((t) => {
-          if (t.resourceYield?.solari) newResources.solari += t.resourceYield.solari / (60000 / 1000)
-          if (t.resourceYield?.spice) newResources.spice += t.resourceYield.spice / (60000 / 1000)
-          if (t.resourceYield?.water) newResources.water += t.resourceYield.water / (60000 / 1000)
-          if (t.resourceYield?.plasteel) newResources.plasteel += t.resourceYield.plasteel / (60000 / 1000)
-          if (t.resourceYield?.rareMaterials)
-            newResources.rareMaterials += t.resourceYield.rareMaterials / (60000 / 1000)
-          if (t.resourceYield?.melange) newResources.melange += t.resourceYield.melange / (60000 / 1000)
+          if (t.resourceYield?.solari) newResources.solari += t.resourceYield.solari
+          if (t.resourceYield?.spice) newResources.spice += t.resourceYield.spice
+          if (t.resourceYield?.water) newResources.water += t.resourceYield.water
+          if (t.resourceYield?.plasteel) newResources.plasteel += t.resourceYield.plasteel
+          if (t.resourceYield?.rareMaterials) newResources.rareMaterials += t.resourceYield.rareMaterials
+          if (t.resourceYield?.melange) newResources.melange += t.resourceYield.melange
         })
         if (newPlayer.investments) {
           Object.values(newPlayer.investments).forEach((inv) => {
             if (inv.level > 0) {
               // Apply production based on venture type
-              if (inv.name.includes("Spice Harvester")) newResources.spice += inv.productionRate / (60000 / 1000)
-              else if (inv.name.includes("Processing Plant"))
-                newResources.melange += inv.productionRate / (60000 / 1000)
-              else if (inv.name.includes("Trade Routes")) newResources.solari += inv.productionRate / (60000 / 1000)
+              if (inv.productionResource) {
+                ;(newResources as any)[inv.productionResource] += inv.productionRate
+              }
             }
           })
         }
@@ -1470,9 +1469,8 @@ export default function ArrakisGamePage() {
         const upgradedVenture: Investment = {
           ...venture,
           level: venture.level + 1,
-          costToUpgrade: Math.floor(venture.costToUpgrade * 1.8),
-          // Production rate now scales from its current value, which is initialized correctly
-          productionRate: Math.floor(venture.productionRate * 1.5),
+          costToUpgrade: Math.floor(venture.costToUpgrade * 1.5), // Match EmpireTab scaling
+          productionRate: venture.productionRate * 1.1, // Match EmpireTab scaling
         }
         addNotification(`${venture.name} upgraded to Level ${upgradedVenture.level}!`, "success")
         return {

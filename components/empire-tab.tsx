@@ -15,22 +15,25 @@ export const initialVentures: Record<string, Investment> = {
     name: "Spice Harvester Fleet",
     description: "Deploy automated harvesters to extract Spice. Risky but potentially high yield.",
     level: 0,
-    costToUpgrade: 500, // Solari
-    productionRate: 10, // Spice per minute at level 1
+    costToUpgrade: 100, // Solari - Cheaper initial cost
+    productionRate: 1, // 1 Spice per second at level 1
+    productionResource: "spice", // New: specify resource
   },
   processing_plant: {
     name: "Spice Processing Plant",
     description: "Refine raw Spice into Melange, increasing its value. Requires Plasteel for upgrades.",
     level: 0,
-    costToUpgrade: 1000, // Solari + Plasteel
-    productionRate: 5, // Melange per minute at level 1
+    costToUpgrade: 200, // Solari + Plasteel - Cheaper initial cost
+    productionRate: 0.05, // 0.05 Melange per second (1 every 20 seconds) at level 1
+    productionResource: "melange", // New: specify resource
   },
   trade_routes: {
     name: "Interstellar Trade Routes",
     description: "Establish lucrative trade routes for consistent Solari income from Spice sales.",
     level: 0,
-    costToUpgrade: 2000, // Solari
-    productionRate: 100, // Solari per minute at level 1
+    costToUpgrade: 400, // Solari - Cheaper initial cost
+    productionRate: 5, // 5 Solari per second at level 1
+    productionResource: "solari", // New: specify resource
   },
 }
 
@@ -38,19 +41,16 @@ export function EmpireTab({ player, resources, onInvest }: EmpireTabProps) {
   const [ventures, setVentures] = useState<Record<string, Investment>>(player.investments || initialVentures)
 
   const handleInvestment = (ventureId: string) => {
-    // In a real app, this would update global state and persist
     const venture = ventures[ventureId]
     if (resources.solari >= venture.costToUpgrade) {
-      // Simplified cost check
       const updatedVenture = {
         ...venture,
         level: venture.level + 1,
-        costToUpgrade: Math.floor(venture.costToUpgrade * 1.8), // Increase cost for next level
-        productionRate: Math.floor(venture.productionRate * 1.5), // Increase production
+        costToUpgrade: Math.floor(venture.costToUpgrade * 1.5), // Increase cost for next level (less steep)
+        productionRate: venture.productionRate * 1.1, // Increase production by 10%
       }
       setVentures((prev) => ({ ...prev, [ventureId]: updatedVenture }))
       onInvest(ventureId) // This should trigger global state update & resource deduction
-      // Potentially update player.investments here or via onInvest callback
     } else {
       alert("Not enough Solari to upgrade this venture!")
     }
@@ -74,7 +74,10 @@ export function EmpireTab({ player, resources, onInvest }: EmpireTabProps) {
               </p>
               <p className="text-sm text-stone-300 mb-3">{venture.description}</p>
               <p className="text-sm text-stone-300 mb-1">
-                Current Production: <span className="font-bold text-green-400">{venture.productionRate}</span> / min
+                Current Production:{" "}
+                <span className="font-bold text-green-400">
+                  {venture.productionRate.toFixed(2)} {venture.productionResource} / sec
+                </span>
               </p>
               <p className="text-sm text-stone-300 mb-4">
                 Upgrade Cost:{" "}

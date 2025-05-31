@@ -81,21 +81,15 @@ export function CombatModal({
   // This effect will trigger enemy's turn when combatState.turn becomes "enemy"
   useEffect(() => {
     if (combatState.active && combatState.turn === "enemy") {
-      // Simulate enemy thinking/delay before attacking
-      const enemyActionDelay = 1000 // 1 second delay for enemy to attack
-      const timer = setTimeout(() => {
-        // Calculate enemy damage: base attack - (player defense + armor defense + accessory defense)
-        const enemyDamage = Math.max(
-          1,
-          enemy.attack -
-            (player.defense + (player.equipment?.armor?.defense || 0) + (player.equipment?.accessory?.defense || 0)),
-        )
-        const isDodge = Math.random() * 100 < player.dodgeChance
+      // Enemy attacks immediately
+      const enemyDamage = Math.max(
+        1,
+        enemy.attack -
+          (player.defense + (player.equipment?.armor?.defense || 0) + (player.equipment?.accessory?.defense || 0)),
+      )
+      const isDodge = Math.random() * 100 < player.dodgeChance
 
-        onEnemyAttack(enemyDamage, isDodge)
-      }, enemyActionDelay)
-
-      return () => clearTimeout(timer) // Cleanup timer if component unmounts or turn changes
+      onEnemyAttack(enemyDamage, isDodge)
     }
   }, [combatState.active, combatState.turn, enemy, player, onEnemyAttack])
 
