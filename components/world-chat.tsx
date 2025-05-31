@@ -14,14 +14,19 @@ interface WorldChatProps {
 export function WorldChat({ messages, onSendMessage, playerName, playerColor }: WorldChatProps) {
   const [inputMessage, setInputMessage] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    const chatContainer = chatContainerRef.current
+    if (chatContainer) {
+      // Check if the user is already scrolled to the bottom or very close
+      const isAtBottom = chatContainer.scrollHeight - chatContainer.clientHeight <= chatContainer.scrollTop + 1 // +1 for tolerance
+
+      if (isAtBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      }
+    }
+  }, [messages]) // Only re-run when messages change
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,7 +38,7 @@ export function WorldChat({ messages, onSendMessage, playerName, playerColor }: 
 
   return (
     <div className="flex flex-col h-[400px] bg-stone-800 rounded-lg border border-stone-600">
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 text-sm custom-scrollbar">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2 text-sm custom-scrollbar">
         {messages.map((msg, index) => (
           <div key={index} className="flex items-start">
             <span className={`font-bold mr-2 player-color-${msg.senderColor || "gray"}`}>{msg.senderName}:</span>

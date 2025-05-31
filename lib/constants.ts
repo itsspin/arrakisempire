@@ -43,3 +43,11 @@ export const DUNE_QUOTES = [
   "The future remains uncertain and so it should, for it is the canvas upon which we paint our desires.",
   "Bless the Maker and His water. Bless the coming and going of Him.",
 ]
+
+export const RARITY_SCORES = {
+  common: 1,
+  uncommon: 2,
+  rare: 3,
+  epic: 4,
+  legendary: 5,
+}

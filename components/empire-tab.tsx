@@ -9,7 +9,8 @@ interface EmpireTabProps {
   onInvest: (ventureId: string) => void // Function to handle investment
 }
 
-const initialVentures: Record<string, Investment> = {
+// Export initialVentures so it can be used in app/page.tsx for consistent state initialization
+export const initialVentures: Record<string, Investment> = {
   harvester_fleet: {
     name: "Spice Harvester Fleet",
     description: "Deploy automated harvesters to extract Spice. Risky but potentially high yield.",

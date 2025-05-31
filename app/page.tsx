@@ -38,7 +38,7 @@ import type {
   ChatMessage,
   Ability,
 } from "@/types/game"
-import { CONFIG, PLAYER_COLORS } from "@/lib/constants"
+import { CONFIG, PLAYER_COLORS, RARITY_SCORES } from "@/lib/constants" // Import RARITY_SCORES
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
 import {
@@ -55,6 +55,9 @@ import {
 } from "firebase/firestore"
 import { signInAnonymously } from "firebase/auth"
 
+// Import initialVentures from EmpireTab for consistent initialization
+import { initialVentures as empireInitialVentures } from "@/components/empire-tab"
+
 // Helper to get a random integer between min and max (inclusive)
 const getRandomInt = (min: number, max: number) => {
   min = Math.ceil(min)
@@ -62,10 +65,10 @@ const getRandomInt = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-// Helper to get a random map coordinate within a reasonable range
+// Helper to get a random map coordinate across the entire map
 const getRandomMapCoords = () => {
-  const x = getRandomInt(CONFIG.MAP_SIZE / 2 - 10, CONFIG.MAP_SIZE / 2 + 10)
-  const y = getRandomInt(CONFIG.MAP_SIZE / 2 - 10, CONFIG.MAP_SIZE / 2 + 10)
+  const x = getRandomInt(0, CONFIG.MAP_SIZE - 1)
+  const y = getRandomInt(0, CONFIG.MAP_SIZE - 1)
   return { x, y }
 }
 
@@ -82,23 +85,23 @@ const generateMockLeaderboard = (): RankedPlayer[] => {
   })).sort((a, b) => a.rank - b.rank)
 }
 
+// Generate a territory for every cell on the map
 const generateMockTerritories = (): Record<string, TerritoryDetails> => {
   const territories: Record<string, TerritoryDetails> = {}
-  for (let i = 0; i < 10; i++) {
-    const { x, y } = getRandomMapCoords()
-    if (x === 100 && y === 100) continue // Avoid player's starting cell
-    const key = `${x},${y}`
-    if (territories[key]) continue
-    territories[key] = {
-      id: `terr_${x}_${y}`,
-      x,
-      y,
-      position: { x, y },
-      ownerId: null,
-      purchaseCost: 1000 + Math.floor(Math.random() * 2000),
-      perks: [`+${Math.floor(Math.random() * 10 + 1)}% Spice Production`],
-      resourceYield: { spice: Math.floor(Math.random() * 5 + 1) },
-      name: `Sector ${String.fromCharCode(65 + i)}${i + 1}`,
+  for (let x = 0; x < CONFIG.MAP_SIZE; x++) {
+    for (let y = 0; y < CONFIG.MAP_SIZE; y++) {
+      const key = `${x},${y}`
+      territories[key] = {
+        id: `terr_${x}_${y}`,
+        x,
+        y,
+        position: { x, y },
+        ownerId: null,
+        purchaseCost: 500 + Math.floor(Math.random() * 1500), // Adjusted cost for more territories
+        perks: [`+${Math.floor(Math.random() * 5 + 1)}% Spice Production`], // Smaller perks for more territories
+        resourceYield: { spice: Math.floor(Math.random() * 3 + 1) }, // Smaller yield
+        name: `Sector ${String.fromCharCode(65 + x)}${y + 1}`,
+      }
     }
   }
   return territories
@@ -107,11 +110,12 @@ const generateMockTerritories = (): Record<string, TerritoryDetails> => {
 const generateMockEnemies = (): Record<string, Enemy> => {
   const enemies: Record<string, Enemy> = {}
   const enemyTypes = Object.keys(STATIC_DATA.ENEMIES)
-  for (let i = 0; i < 5; i++) {
+  // Generate more enemies to populate the map
+  const numEnemies = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.01) // 1% of map cells have enemies
+  for (let i = 0; i < numEnemies; i++) {
     const { x, y } = getRandomMapCoords()
-    if (x === 100 && y === 100) continue
     const key = `${x},${y}`
-    if (enemies[key]) continue
+    if (enemies[key]) continue // Avoid overwriting existing enemy on same cell
     const enemyTypeKey = enemyTypes[getRandomInt(0, enemyTypes.length - 1)] as keyof typeof STATIC_DATA.ENEMIES
     const enemyData = STATIC_DATA.ENEMIES[enemyTypeKey]
     enemies[key] = {
@@ -128,7 +132,6 @@ const generateMockEnemies = (): Record<string, Enemy> => {
       level: enemyData.level,
       description: enemyData.description,
       position: { x, y },
-      // Ensure boolean properties are explicitly true or false, not undefined
       boss: enemyData.boss || false,
       special: enemyData.special || false,
       legendary: enemyData.legendary || false,
@@ -140,11 +143,12 @@ const generateMockEnemies = (): Record<string, Enemy> => {
 const generateMockResources = (): Record<string, ResourceNode> => {
   const resources: Record<string, ResourceNode> = {}
   const resourceTypes = ["spice", "water", "plasteel"]
-  for (let i = 0; i < 8; i++) {
+  // Generate more resource nodes
+  const numResources = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.02) // 2% of map cells have resources
+  for (let i = 0; i < numResources; i++) {
     const { x, y } = getRandomMapCoords()
-    if (x === 100 && y === 100) continue
     const key = `${x},${y}`
-    if (resources[key]) continue
+    if (resources[key]) continue // Avoid overwriting existing resource on same cell
     const type = resourceTypes[getRandomInt(0, resourceTypes.length - 1)]
     resources[key] = {
       id: `res_${x}_${y}`,
@@ -160,11 +164,12 @@ const generateMockResources = (): Record<string, ResourceNode> => {
 const generateMockItems = (): Record<string, Item> => {
   const items: Record<string, Item> = {}
   const itemKeys = Object.keys(STATIC_DATA.ITEMS) as Array<keyof typeof STATIC_DATA.ITEMS>
-  for (let i = 0; i < 5; i++) {
+  // Generate more items
+  const numItems = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.005) // 0.5% of map cells have items
+  for (let i = 0; i < numItems; i++) {
     const { x, y } = getRandomMapCoords()
-    if (x === 100 && y === 100) continue
     const key = `${x},${y}`
-    if (items[key]) continue
+    if (items[key]) continue // Avoid overwriting existing item on same cell
     const itemTypeKey = itemKeys[getRandomInt(0, itemKeys.length - 1)]
     const itemData = STATIC_DATA.ITEMS[itemTypeKey]
     items[key] = {
@@ -174,74 +179,55 @@ const generateMockItems = (): Record<string, Item> => {
       type: itemData.type,
       rarity: itemData.rarity,
       description: itemData.description,
-      // Ensure attack and defense are always numbers, defaulting to 0 if undefined
       attack: itemData.attack ?? 0,
       defense: itemData.defense ?? 0,
-      // Ensure special is always a string or null, defaulting to null if undefined
       special: itemData.special ?? null,
     }
   }
   return items
 }
 
-const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => ({
-  id: id,
-  name: "Wanderer",
-  color: PLAYER_COLORS[prestigeLevel % PLAYER_COLORS.length], // Cycle colors on prestige
-  level: 1,
-  experience: 0,
-  experienceToNext: CONFIG.XP_BASE,
-  health: 120,
-  maxHealth: 120,
-  energy: 150,
-  maxEnergy: 150,
-  attack: 15,
-  defense: 10,
-  critChance: 8,
-  dodgeChance: 15,
-  position: { x: 100, y: 100 },
-  basePosition: { x: 100, y: 100 },
-  house: null,
-  rank: 100,
-  rankName: "Sand Nomad",
-  power: 0,
-  prestigeLevel: prestigeLevel,
-  globalGainMultiplier: 1 + prestigeLevel * 0.05, // Base 5% per prestige level
-  territories: [], // Territories are preserved across prestige
-  lifetimeSpice: 0,
-  totalEnemiesDefeated: 0,
-  energyProductionRate: CONFIG.ENERGY_REGEN_RATE,
-  created: Date.now(),
-  lastActive: Date.now(),
-  investments: {
-    harvester_fleet: {
-      name: "Spice Harvester Fleet",
-      description: "Deploy automated harvesters.",
-      level: 0,
-      costToUpgrade: 500,
-      productionRate: 0,
+const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => {
+  const initialPosition = getRandomMapCoords() // Player spawns randomly
+  return {
+    id: id,
+    name: "Wanderer",
+    color: PLAYER_COLORS[prestigeLevel % PLAYER_COLORS.length], // Cycle colors on prestige
+    level: 1,
+    experience: 0,
+    experienceToNext: CONFIG.XP_BASE,
+    health: 120,
+    maxHealth: 120,
+    energy: 150,
+    maxEnergy: 150,
+    attack: 15,
+    defense: 10,
+    critChance: 8,
+    dodgeChance: 15,
+    position: initialPosition,
+    basePosition: initialPosition, // Base is also randomized
+    house: null,
+    rank: 100,
+    rankName: "Sand Nomad",
+    power: 0,
+    prestigeLevel: prestigeLevel,
+    globalGainMultiplier: 1 + prestigeLevel * 0.05, // Base 5% per prestige level
+    territories: [], // Territories are preserved across prestige
+    lifetimeSpice: 0,
+    totalEnemiesDefeated: 0,
+    energyProductionRate: CONFIG.ENERGY_REGEN_RATE,
+    created: Date.now(),
+    lastActive: Date.now(),
+    investments: {
+      ...empireInitialVentures, // Initialize investments with base values from EmpireTab
     },
-    processing_plant: {
-      name: "Spice Processing Plant",
-      description: "Refine raw Spice.",
-      level: 0,
-      costToUpgrade: 1000,
-      productionRate: 0,
-    },
-    trade_routes: {
-      name: "Interstellar Trade Routes",
-      description: "Establish trade routes.",
-      level: 0,
-      costToUpgrade: 2000,
-      productionRate: 0,
-    },
-  },
-  spicePerClick: 1,
-  spiceClickUpgradeCost: 50,
-  unlockedAbilities: [], // Initialize empty
-  activeAbility: null, // Initialize null
-  isDefending: false, // New: Initialize false
-})
+    spicePerClick: 1,
+    spiceClickUpgradeCost: 50,
+    unlockedAbilities: [], // Initialize empty
+    activeAbility: null, // Initialize null
+    isDefending: false, // New: Initialize false
+  }
+}
 
 const getInitialResourcesState = (): Resources => ({
   spice: 100,
@@ -251,6 +237,14 @@ const getInitialResourcesState = (): Resources => ({
   rareMaterials: 10,
   melange: 5,
 })
+
+// Generate initial map data once
+const initialMapData = {
+  enemies: generateMockEnemies(),
+  resources: generateMockResources(),
+  territories: generateMockTerritories(),
+  items: generateMockItems(),
+}
 
 const initialGameState: GameState = {
   player: getInitialPlayerState(null),
@@ -266,7 +260,6 @@ const initialGameState: GameState = {
     playerHealthAtStart: 0,
     enemyHealthAtStart: 0,
     combatRound: 0,
-    // Removed miniGameActive, miniGameResult, turnStartTime
   },
   currentTab: "game",
   gameInitialized: false,
@@ -301,25 +294,34 @@ const initialGameState: GameState = {
     },
   ],
   tradeOffers: [],
-  map: {
-    enemies: generateMockEnemies(),
-    resources: generateMockResources(),
-    territories: generateMockTerritories(),
-    items: generateMockItems(),
-  },
+  map: initialMapData, // Use the pre-generated map data
   leaderboard: generateMockLeaderboard(),
   isNameModalOpen: true, // Start with name selection
   isHouseModalOpen: false,
   isCombatModalOpen: false,
   isTradingModalOpen: false,
   isTerritoryModalOpen: false,
-  // Removed isHousesModalOpen, isWorldEventsModalOpen, isTradingModalOpen
   isPrestigeModalOpen: false,
   isAbilitySelectionModalOpen: false,
   selectedTerritoryCoords: null,
   notifications: [],
   chatMessages: [],
   abilityCooldowns: {},
+}
+
+// Helper to calculate equipment score based on rarity
+const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
+  let score = 0
+  if (equipment.weapon && equipment.weapon.rarity) {
+    score += RARITY_SCORES[equipment.weapon.rarity as keyof typeof RARITY_SCORES] || 0
+  }
+  if (equipment.armor && equipment.armor.rarity) {
+    score += RARITY_SCORES[equipment.armor.rarity as keyof typeof RARITY_SCORES] || 0
+  }
+  if (equipment.accessory && equipment.accessory.rarity) {
+    score += RARITY_SCORES[equipment.accessory.rarity as keyof typeof RARITY_SCORES] || 0
+  }
+  return score
 }
 
 export default function ArrakisGamePage() {
@@ -381,7 +383,29 @@ export default function ArrakisGamePage() {
         if (playerDocSnap.exists()) {
           console.log("Player document found. Loading saved game state.")
           const savedState = playerDocSnap.data() as GameState
-          setGameState(savedState)
+
+          // Reconstruct map territories based on saved player territories
+          const newMapTerritories = { ...initialMapData.territories } // Start with a fresh map
+          savedState.player.territories.forEach((ownedTerritory) => {
+            const key = `${ownedTerritory.x},${ownedTerritory.y}`
+            if (newMapTerritories[key]) {
+              newMapTerritories[key] = { ...newMapTerritories[key], ...ownedTerritory } // Update ownership
+            }
+          })
+
+          setGameState((prev) => ({
+            ...prev,
+            ...savedState, // Load all other saved state
+            map: {
+              ...initialMapData, // Use initial map data for enemies, resources, items
+              territories: newMapTerritories, // Use the reconstructed territories
+            },
+            // Ensure these are initialized if they weren't saved in older versions
+            unlockedAbilities: savedState.player.unlockedAbilities || [],
+            activeAbility: savedState.player.activeAbility || null,
+            isDefending: savedState.player.isDefending || false,
+            abilityCooldowns: savedState.abilityCooldowns || {},
+          }))
           addNotification(`Welcome back, ${savedState.player.name}!`, "legendary")
         } else {
           console.log("No player document found. Starting new game.")
@@ -659,7 +683,6 @@ export default function ArrakisGamePage() {
         playerHealthAtStart: 0,
         enemyHealthAtStart: 0,
         combatRound: 0,
-        // Removed miniGameActive, miniGameResult, turnStartTime
       }
 
       return {
@@ -681,7 +704,7 @@ export default function ArrakisGamePage() {
         if (!prev.combat.active || !prev.combat.enemy || prev.combat.turn !== "player") return prev // Ensure it's player's turn
 
         const newCombat = { ...prev.combat }
-        const newEnemy = { ...newCombat.enemy }
+        const newEnemy = { ...newCombat.enemy } // This creates a shallow copy of the enemy object
         const newPlayer = { ...prev.player, isDefending: false } // Reset defending state
 
         // Apply active ability effects to player's outgoing damage
@@ -695,6 +718,7 @@ export default function ArrakisGamePage() {
         }
 
         newEnemy.currentHealth = Math.max(0, newEnemy.currentHealth - finalDamage)
+        console.log(`[DEBUG] Enemy health after player attack: ${newEnemy.currentHealth}`) // Debug log
         newCombat.enemy = newEnemy // Crucial: Update the enemy object in newCombat
         newCombat.log.push(
           `<p class="log-player">You attacked ${newEnemy.name} for <span class="${isCrit ? "log-crit" : ""}">${finalDamage}</span> damage!${isCrit ? " (Critical Hit!)" : ""}</p>`,
@@ -709,7 +733,6 @@ export default function ArrakisGamePage() {
           // Continue combat, switch to enemy turn
           newCombat.turn = "enemy"
           newCombat.combatRound++
-          // Removed miniGameActive, turnStartTime
           return { ...prev, combat: newCombat, player: newPlayer }
         }
       })
@@ -726,7 +749,6 @@ export default function ArrakisGamePage() {
       newCombat.log.push(`<p class="log-player">You brace for impact, increasing your defense!</p>`)
       newCombat.turn = "enemy"
       newCombat.combatRound++
-      // Removed miniGameActive, turnStartTime
       addNotification("You chose to Defend!", "info")
       return { ...prev, combat: newCombat, player: newPlayer }
     })
@@ -774,18 +796,18 @@ export default function ArrakisGamePage() {
           )
         } else {
           newPlayer.health = Math.max(0, newPlayer.health - finalDamage)
+          console.log(`[DEBUG] Player health after enemy attack: ${newPlayer.health}`) // Debug log
           newCombat.log.push(`<p class="log-enemy">${enemyInstance.name} attacked you for ${finalDamage} damage!</p>`)
         }
 
         if (newPlayer.health <= 0) {
           // Player defeated
-          newCombat.log.push(`<p class="log-error">You have been defeated by ${enemyInstance.name}!</p>`)
+          newCombat.log.push(`<p class="log-error">You have been defeated by ${newCombat.enemy!.name}!</p>`)
           addNotification("You have been defeated!", "error")
-          return handleCombatEnd("lose", newPlayer, enemyInstance, newCombat, prev.resources, prev.map)
+          return handleCombatEnd("lose", newPlayer, newCombat.enemy, newCombat, prev.resources, prev.map)
         } else {
           newCombat.turn = "player"
           newCombat.combatRound++
-          // Removed miniGameActive, turnStartTime
           return { ...prev, combat: newCombat, player: newPlayer }
         }
       })
@@ -824,6 +846,7 @@ export default function ArrakisGamePage() {
           }
 
           newPlayer.health = Math.max(0, newPlayer.health - enemyDamage)
+          console.log(`[DEBUG] Player health after failed flee attack: ${newPlayer.health}`) // Debug log
           newCombat.log.push(`<p class="log-enemy">${newCombat.enemy.name} strikes you for ${enemyDamage} damage!</p>`)
 
           if (newPlayer.health <= 0) {
@@ -833,7 +856,6 @@ export default function ArrakisGamePage() {
           } else {
             newCombat.turn = "enemy" // After failed flee, it's enemy's turn
             newCombat.combatRound++
-            // Removed miniGameActive, turnStartTime
             return { ...prev, combat: newCombat, player: newPlayer }
           }
         }
@@ -952,10 +974,11 @@ export default function ArrakisGamePage() {
 
       const resetEquipment = { weapon: null, armor: null, accessory: null }
       const resetInventory = new Array(CONFIG.MAX_INVENTORY).fill(null)
+      // When prestiging, regenerate the map elements (enemies, resources, items)
       const resetMap = {
         enemies: generateMockEnemies(),
         resources: generateMockResources(),
-        territories: generateMockTerritories(),
+        territories: generateMockTerritories(), // Re-generate all territories
         items: generateMockItems(),
       }
 
@@ -1006,7 +1029,7 @@ export default function ArrakisGamePage() {
             energyRegenRate = Math.floor(energyRegenRate * (1 + newPlayer.activeAbility.effectValue / 100))
           }
           newPlayer.energy = Math.min(newPlayer.maxEnergy, newPlayer.energy + energyRegenRate)
-          prev.lastEnergyRegen = now // Update last regen time
+          // No direct mutation of prev.lastEnergyRegen here, it's handled in the return
         }
 
         // Health Regen from abilities
@@ -1024,24 +1047,22 @@ export default function ArrakisGamePage() {
         })
         Object.entries(newMap.resources).forEach(([key, resourceNode]) => {
           if (resourceNode.cooldownUntil && now >= resourceNode.cooldownUntil) {
-            if (resourceNode.cooldownUntil && now >= resourceNode.cooldownUntil) {
-              if (resourceNode.type === "spice")
-                newMap.resources[key] = {
-                  ...resourceNode,
-                  amount: Math.floor(Math.random() * 50) + 10,
-                  cooldownUntil: null, // Set to null
-                }
-              else if (resourceNode.type === "water")
-                newMap.resources[key] = {
-                  ...resourceNode,
-                  amount: Math.floor(Math.random() * 30) + 5,
-                  cooldownUntil: null, // Set to null
-                }
-              else {
-                // If resource is fully depleted and not respawning, remove it from map
-                delete newMap.resources[key]
-              }
+            // Re-spawn logic for resource nodes
+            const { x, y } = getRandomMapCoords() // Respawn at a new random location
+            const newResourceKey = `${x},${y}`
+            const resourceTypes = ["spice", "water", "plasteel"]
+            const newType = resourceTypes[getRandomInt(0, resourceTypes.length - 1)]
+
+            newMap.resources[newResourceKey] = {
+              id: `res_${newResourceKey}`,
+              type: newType,
+              amount: Math.floor(Math.random() * 50) + 10,
+              position: { x, y },
+              icon: newType === "spice" ? "✨" : newType === "water" ? "💧" : "🔧",
+              cooldownUntil: null,
             }
+            delete newMap.resources[key] // Remove the old depleted node
+            addNotification(`A new ${newType} node appeared at (${x},${y})!`, "info")
           }
         })
 
@@ -1062,13 +1083,20 @@ export default function ArrakisGamePage() {
         newPlayer.territories.forEach((t) => {
           if (t.resourceYield?.solari) newResources.solari += t.resourceYield.solari / (60000 / 1000)
           if (t.resourceYield?.spice) newResources.spice += t.resourceYield.spice / (60000 / 1000)
+          if (t.resourceYield?.water) newResources.water += t.resourceYield.water / (60000 / 1000)
+          if (t.resourceYield?.plasteel) newResources.plasteel += t.resourceYield.plasteel / (60000 / 1000)
+          if (t.resourceYield?.rareMaterials)
+            newResources.rareMaterials += t.resourceYield.rareMaterials / (60000 / 1000)
+          if (t.resourceYield?.melange) newResources.melange += t.resourceYield.melange / (60000 / 1000)
         })
         if (newPlayer.investments) {
           Object.values(newPlayer.investments).forEach((inv) => {
             if (inv.level > 0) {
-              if (inv.name.includes("Spice")) newResources.spice += inv.productionRate / (60000 / 1000)
-              else if (inv.name.includes("Solari") || inv.name.includes("Trade"))
-                newResources.solari += inv.productionRate / (60000 / 1000)
+              // Apply production based on venture type
+              if (inv.name.includes("Spice Harvester")) newResources.spice += inv.productionRate / (60000 / 1000)
+              else if (inv.name.includes("Processing Plant"))
+                newResources.melange += inv.productionRate / (60000 / 1000)
+              else if (inv.name.includes("Trade Routes")) newResources.solari += inv.productionRate / (60000 / 1000)
             }
           })
         }
@@ -1080,8 +1108,15 @@ export default function ArrakisGamePage() {
           }
         }
 
-        const newRankScore = newResources.solari + newResources.spice * 5 + newPlayer.territories.length * 1000
-        newPlayer.rank = Math.max(1, 100 - Math.floor(newRankScore / 1000))
+        // Calculate new rank score
+        const equipmentScore = calculateEquipmentScore(prev.equipment)
+        const newRankScore =
+          newResources.solari * 0.1 + // Solari contributes
+          equipmentScore * 500 + // Equipment rarity contributes significantly
+          newPlayer.prestigeLevel * 1000 + // Prestige contributes
+          newPlayer.territories.length * 200 // Territories contribute
+
+        newPlayer.rank = Math.max(1, 100 - Math.floor(newRankScore / 1000)) // Scale to 1-100
         newPlayer.rankName =
           newPlayer.rank < 10 ? "Spice Baron" : newPlayer.rank < 50 ? "Guild Associate" : "Sand Nomad"
 
@@ -1105,7 +1140,9 @@ export default function ArrakisGamePage() {
       const currentGameState = gameStateRef.current // Access latest state via ref
       if (currentGameState.player.id && currentGameState.gameInitialized) {
         try {
-          await setDoc(doc(db, "players", currentGameState.player.id), currentGameState)
+          // Create a stripped-down state object for saving
+          const { map: _, ...stateToSave } = currentGameState // Exclude map from saving
+          await setDoc(doc(db, "players", currentGameState.player.id), stateToSave)
           console.log("Game state saved to Firebase.")
         } catch (error) {
           console.error("Error saving game state to Firebase:", error)
@@ -1133,50 +1170,41 @@ export default function ArrakisGamePage() {
         const key = `${targetX},${targetY}`
         const enemyOnCell = map.enemies[key]
         const resourceOnCell = map.resources[key]
-        const territoryOnCell = map.territories[key]
+        // const territoryOnCell = map.territories[key] // No longer directly handled here
         const itemOnCell = map.items[key] // New: Check for items
 
         // If combat is active, prevent any other actions
         if (prev.isCombatModalOpen || prev.isAbilitySelectionModalOpen) {
-          // Added ability modal check
           addNotification("Cannot perform action during active modal!", "warning")
           return prev
-        }
-
-        // Check if target cell is within 1-block radius for movement/interaction
-        if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || (dx === 0 && dy === 0)) {
-          if (territoryOnCell && !territoryOnCell.ownerId) {
-            // Allow opening territory modal even if not adjacent for purchase
-            return { ...prev, selectedTerritoryCoords: { x: targetX, y: targetY }, isTerritoryModalOpen: true }
-          } else {
-            addNotification("Target is too far to interact directly.", "warning")
-            return prev
-          }
         }
 
         // Movement cost
         let waterCost = 1
         if (player.activeAbility?.id === "sandwalk" && player.activeAbility.effectType === "energy_regen") {
-          // Re-purposed for water efficiency
           waterCost = Math.max(0, waterCost - (waterCost * player.activeAbility.effectValue) / 100)
         }
 
-        if (resources.water < waterCost && (dx !== 0 || dy !== 0)) {
+        // Only apply movement cost if actually moving
+        const isMoving = dx !== 0 || dy !== 0
+        if (resources.water < waterCost && isMoving) {
           addNotification("Not enough water to move!", "warning")
           return prev
         }
 
-        const newPlayer = { ...player, position: { x: targetX, y: targetY } }
+        const newPlayer = { ...player }
         const newResources = { ...resources }
-        if (dx !== 0 || dy !== 0) {
-          newResources.water -= waterCost
-        }
         const newMap = { ...map, enemies: { ...map.enemies }, resources: { ...map.resources }, items: { ...map.items } }
-
         const updatedInventory = [...prev.inventory] // Access top-level inventory
 
-        // Interaction logic
-        if (enemyOnCell && !enemyOnCell.cooldownUntil) {
+        // Handle movement first
+        if (isMoving) {
+          newPlayer.position = { x: targetX, y: targetY }
+          newResources.water -= waterCost
+        }
+
+        // Interaction logic for the target cell (whether moved or clicked on current cell)
+        if (enemyOnCell && !enemyOnCell.cooldownUntil && (isMoving || (dx === 0 && dy === 0))) {
           // Scale enemy stats based on player level
           const originalEnemyData = STATIC_DATA.ENEMIES[enemyOnCell.type as keyof typeof STATIC_DATA.ENEMIES]
           let targetEnemyLevel = player.level // Default to player's level
@@ -1223,14 +1251,12 @@ export default function ArrakisGamePage() {
               playerHealthAtStart: newPlayer.health,
               enemyHealthAtStart: scaledEnemy.health,
               combatRound: 1,
-              // Removed miniGameActive, miniGameResult, turnStartTime
             },
           }
-        } else if (resourceOnCell && !resourceOnCell.cooldownUntil) {
+        } else if (resourceOnCell && !resourceOnCell.cooldownUntil && (isMoving || (dx === 0 && dy === 0))) {
           let amountHarvested = Math.min(resourceOnCell.amount, 10)
           // Apply active ability effects to resource gathering
           if (player.activeAbility?.id === "spiceTrance" && player.activeAbility.effectType === "attack_boost") {
-            // Re-purposed for resource gathering
             amountHarvested = Math.floor(amountHarvested * (1 + player.activeAbility.effectValue / 100))
           }
           ;(newResources as any)[resourceOnCell.type] += amountHarvested
@@ -1245,7 +1271,7 @@ export default function ArrakisGamePage() {
             addNotification(`${resourceOnCell.type} node depleted.`, "info")
             newMap.resources[key].cooldownUntil = Date.now() + CONFIG.RESOURCE_DEPLETED_COOLDOWN
           }
-        } else if (itemOnCell) {
+        } else if (itemOnCell && (isMoving || (dx === 0 && dy === 0))) {
           // Pick up item
           const emptySlotIndex = updatedInventory.findIndex((slot) => slot === null)
 
@@ -1258,12 +1284,11 @@ export default function ArrakisGamePage() {
             }))
             addNotification(`Picked up ${itemOnCell.icon} ${itemOnCell.name}.`, "success")
           } else {
-            addNotification("Inventory is full!", "warning")
+            addNotification("Inventory is full! Could not pick up item.", "warning")
             return prev // Don't move if inventory is full and it's an item
           }
-        } else if (territoryOnCell && !territoryOnCell.ownerId) {
-          return { ...prev, selectedTerritoryCoords: { x: targetX, y: targetY }, isTerritoryModalOpen: true }
         }
+        // Removed territory modal opening from here. It's now handled by handleMapCellClick.
 
         return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
       })
@@ -1316,7 +1341,10 @@ export default function ArrakisGamePage() {
       }
       event.preventDefault()
       if (moved) {
-        attemptPlayerAction(x, y)
+        // Ensure coordinates stay within map bounds
+        const newX = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, x))
+        const newY = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, y))
+        attemptPlayerAction(newX, newY)
       }
     }
 
@@ -1340,7 +1368,20 @@ export default function ArrakisGamePage() {
 
   const handleMapCellClick = useCallback(
     (x: number, y: number) => {
-      attemptPlayerAction(x, y)
+      setGameState((prev) => {
+        const key = `${x},${y}`
+        const territoryOnCell = prev.map.territories[key]
+
+        if (territoryOnCell && !territoryOnCell.ownerId) {
+          // If it's an unowned territory, open the modal
+          return { ...prev, selectedTerritoryCoords: { x, y }, isTerritoryModalOpen: true }
+        } else {
+          // Otherwise, proceed with the general action logic (movement, combat, resource, item)
+          // This will also handle clicking on an owned territory or an empty cell to move.
+          attemptPlayerAction(x, y)
+          return prev // Return previous state as attemptPlayerAction will handle state update
+        }
+      })
     },
     [attemptPlayerAction],
   )
@@ -1355,12 +1396,13 @@ export default function ArrakisGamePage() {
         }
         const territoryToBuy = prev.map.territories[key]
 
-        const dx = Math.abs(territoryToBuy.position.x - prev.player.position.x)
-        const dy = Math.abs(territoryToBuy.position.y - prev.player.position.y)
-        if (dx > 1 || dy > 1) {
-          addNotification("Territory is too far to purchase.", "warning")
-          return prev
-        }
+        // Removed adjacency check for purchasing territories
+        // const dx = Math.abs(territoryToBuy.position.x - prev.player.position.x)
+        // const dy = Math.abs(territoryToBuy.position.y - prev.player.position.y)
+        // if (dx > 1 || dy > 1) {
+        //   addNotification("Territory is too far to purchase.", "warning")
+        //   return prev
+        // }
 
         if (prev.resources.solari < cost) {
           addNotification("Not enough Solari to purchase territory.", "error")
@@ -1429,8 +1471,8 @@ export default function ArrakisGamePage() {
           ...venture,
           level: venture.level + 1,
           costToUpgrade: Math.floor(venture.costToUpgrade * 1.8),
-          productionRate:
-            venture.level === 0 ? STATIC_DATA.ITEMS.lasguns.attack || 10 : Math.floor(venture.productionRate * 1.5),
+          // Production rate now scales from its current value, which is initialized correctly
+          productionRate: Math.floor(venture.productionRate * 1.5),
         }
         addNotification(`${venture.name} upgraded to Level ${upgradedVenture.level}!`, "success")
         return {
@@ -1454,7 +1496,7 @@ export default function ArrakisGamePage() {
   const handleUpgradeSpiceClick = useCallback(() => {
     setGameState((prev) => {
       if (prev.resources.solari < prev.player.spiceClickUpgradeCost) {
-        addNotification("Not enough Solari to upgrade gatherer.", "error")
+        addNotification("Not enough Solari to upgrade gatherer.", "warning")
         return prev
       }
       addNotification("Spice Gatherer upgraded!", "success")
@@ -1581,15 +1623,15 @@ export default function ArrakisGamePage() {
                     🏜️ The Great Desert of Arrakis
                   </h2>
                   <div className="text-lg text-stone-300">
-                    Position:{" "}
+                    Position:
                     <span className="text-amber-300 font-bold">
                       {gameState.player.position.x},{gameState.player.position.y}
                     </span>
                   </div>
                 </div>
                 <div className="text-sm text-stone-400 mb-4 p-3 bg-stone-800 rounded-lg border border-stone-600 text-center">
-                  <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys or Click adjacent
-                  cells to move/interact • Click cells to interact/purchase territory.
+                  <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys to move • Click cells
+                  to interact/purchase territory.
                 </div>
                 <MapGrid
                   player={gameState.player}

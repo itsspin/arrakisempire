@@ -38,8 +38,12 @@ export function CombatModal({
   const [currentLog, setCurrentLog] = useState<string[]>(combatState.log)
   const logEndRef = useRef<HTMLDivElement>(null)
 
-  const playerHealthPercent = (player.health / player.maxHealth) * 100
-  const enemyHealthPercent = (enemy.currentHealth / enemy.health) * 100
+  // Ensure health values are never negative for display
+  const clampedPlayerHealth = Math.max(0, player.health)
+  const clampedEnemyCurrentHealth = Math.max(0, enemy.currentHealth)
+
+  const playerHealthPercent = (clampedPlayerHealth / player.maxHealth) * 100
+  const enemyHealthPercent = (clampedEnemyCurrentHealth / enemy.health) * 100
 
   // Scroll to bottom of combat log on new messages
   useEffect(() => {
@@ -122,7 +126,7 @@ export function CombatModal({
               <div className="flex justify-between text-sm mb-1">
                 <span>Health:</span>
                 <span className="font-mono text-red-400">
-                  {player.health}/{player.maxHealth}
+                  {clampedPlayerHealth}/{player.maxHealth}
                 </span>
               </div>
               <div className="health-bar-container">
@@ -148,7 +152,7 @@ export function CombatModal({
               <div className="flex justify-between text-sm mb-1">
                 <span>Health:</span>
                 <span className="font-mono text-red-400">
-                  {enemy.currentHealth}/{enemy.health}
+                  {clampedEnemyCurrentHealth}/{enemy.health}
                 </span>
               </div>
               <div className="health-bar-container">
