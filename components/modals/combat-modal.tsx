@@ -37,6 +37,17 @@ export function CombatModal({
 }: CombatModalProps) {
   const [currentLog, setCurrentLog] = useState<string[]>(combatState.log)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const [combatAnimation, setCombatAnimation] = useState<"hit" | "crit" | "dodge" | "miss" | null>(null)
+
+  // Effect to clear combat animation after a short delay
+  useEffect(() => {
+    if (combatAnimation) {
+      const timer = setTimeout(() => {
+        setCombatAnimation(null)
+      }, 500) // Animation duration
+      return () => clearTimeout(timer)
+    }
+  }, [combatAnimation])
 
   const playerHealthPercent = (player.health / player.maxHealth) * 100
   const enemyHealthPercent = (enemy.currentHealth / enemy.health) * 100
@@ -63,7 +74,8 @@ export function CombatModal({
         if (isCrit) {
           playerDamage = Math.floor(playerDamage * 1.5) // 150% crit damage
         }
-        onPlayerAttack(playerDamage, isCrit, false) // miniGameSuccess is always false now
+        onPlayerAttack(playerDamage, isCrit, false)
+        setCombatAnimation(isCrit ? "crit" : "hit")
       } else if (actionType === "defend") {
         onDefend()
       } else if (actionType === "flee") {
@@ -115,7 +127,9 @@ export function CombatModal({
 
         <div className="grid grid-cols-2 gap-4 items-center">
           {/* Player Info */}
-          <div className="bg-stone-800 p-4 rounded-lg border border-amber-500">
+          <div
+            className={`bg-stone-800 p-4 rounded-lg border border-amber-500 ${combatAnimation === "dodge" ? "animate-dodge" : ""}`}
+          >
             <h4 className="text-xl font-semibold text-amber-300">{player.name}</h4>
             <p className="text-sm text-stone-400">Level: {player.level}</p>
             <div className="mt-2">
@@ -139,7 +153,9 @@ export function CombatModal({
           </div>
 
           {/* Enemy Info */}
-          <div className="bg-stone-800 p-4 rounded-lg border border-red-500">
+          <div
+            className={`bg-stone-800 p-4 rounded-lg border border-red-500 ${combatAnimation === "hit" ? "animate-hit" : combatAnimation === "crit" ? "animate-crit" : ""}`}
+          >
             <h4 className="text-xl font-semibold text-red-300">
               {enemy.icon} {enemy.name}
             </h4>
