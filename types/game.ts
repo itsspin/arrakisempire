@@ -13,13 +13,14 @@ export interface Player {
   defense: number
   critChance: number
   dodgeChance: number
-  position: { x: number; y: number }
+  position: { x: number; y: number } // Corrected to number
   basePosition: { x: number; y: number }
   house: string | null
   rank: number
   rankName?: string
   power: number
   prestigeLevel: number
+  globalGainMultiplier: number // New: Multiplier for all gains (XP, resources, etc.) from prestige
   territories: TerritoryDetails[]
   lifetimeSpice: number
   totalEnemiesDefeated: number
@@ -29,6 +30,9 @@ export interface Player {
   investments?: Record<string, Investment>
   spicePerClick: number // New: Spice generated per click
   spiceClickUpgradeCost: number // New: Cost to upgrade spicePerClick
+  unlockedAbilities: Ability[] // New: Abilities the player has unlocked
+  activeAbility: Ability | null // New: The currently active ability
+  isDefending: boolean // New: True if player chose to defend this turn
 }
 
 export interface Resources {
@@ -56,13 +60,13 @@ export interface Item {
   rarity: string // e.g., "common", "uncommon", "rare", "epic", "legendary"
   description: string
   dropChance?: number
-  special?: string // e.g., "desert_survival", "spice_detection"
+  special?: string | null // Ensure this can be null
 }
 
 export interface MapElement {
   id: string
   position: { x: number; y: number }
-  cooldownUntil?: number // Timestamp until it's active again
+  cooldownUntil?: number | null // Ensure this can be null
 }
 
 export interface Enemy extends MapElement {
@@ -97,8 +101,7 @@ export interface Combat {
   playerHealthAtStart: number // Player's health when combat started
   enemyHealthAtStart: number // Enemy's health when combat started
   combatRound: number // Current round number
-  miniGameActive: boolean // Is the mini-game currently active?
-  miniGameResult: "success" | "fail" | null // Result of the last mini-game
+  // Removed miniGameActive, miniGameResult, turnStartTime
 }
 
 export interface TerritoryDetails extends MapElement {
@@ -139,6 +142,30 @@ export interface WorldEvent extends MapElement {
   endTime?: number // Timestamp
 }
 
+export interface ChatMessage {
+  senderId: string
+  senderName: string
+  senderColor: string
+  timestamp: {
+    seconds: number
+    nanoseconds: number
+  }
+  message: string // Added message property
+}
+
+// New: Ability Interface
+export interface Ability {
+  id: string
+  name: string
+  description: string
+  icon: string
+  levelRequired: number
+  cooldown: number // in milliseconds
+  duration: number // in milliseconds, for temporary buffs
+  effectType: "attack_boost" | "defense_boost" | "crit_boost" | "dodge_boost" | "health_regen" | "energy_regen" | "stun"
+  effectValue: number // Percentage or flat value
+}
+
 export interface GameState {
   player: Player
   resources: Resources
@@ -165,8 +192,13 @@ export interface GameState {
   isCombatModalOpen: boolean
   isTradingModalOpen: boolean
   isTerritoryModalOpen: boolean
+  // Removed isHousesModalOpen, isWorldEventsModalOpen
+  isPrestigeModalOpen: boolean
+  isAbilitySelectionModalOpen: boolean
   selectedTerritoryCoords: { x: number; y: number } | null
   notifications: Array<{ id: string; message: string; type: "success" | "error" | "warning" | "info" | "legendary" }>
+  chatMessages: ChatMessage[] // New: Array to store chat messages
+  abilityCooldowns: Record<string, number> // New: Tracks cooldowns for abilities
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"

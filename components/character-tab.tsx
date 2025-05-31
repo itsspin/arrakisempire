@@ -1,6 +1,6 @@
 "use client"
 
-import type { Player, Equipment, Item } from "@/types/game"
+import type { Player, Equipment, Item, Ability } from "@/types/game"
 import { CONFIG } from "@/lib/constants" // For MAX_INVENTORY
 
 interface CharacterTabProps {
@@ -8,10 +8,22 @@ interface CharacterTabProps {
   equipment: Equipment
   inventory: (Item | null)[]
   onEquipItem: (item: Item, inventoryIndex: number) => void
-  // Add more props for character management actions if needed
+  onOpenPrestigeModal: () => void // New prop
+  onActivateAbility: (ability: Ability) => void // New prop
+  abilityCooldowns: Record<string, number> // New prop
 }
 
-export function CharacterTab({ player, equipment, inventory, onEquipItem }: CharacterTabProps) {
+export function CharacterTab({
+  player,
+  equipment,
+  inventory,
+  onEquipItem,
+  onOpenPrestigeModal,
+  onActivateAbility,
+  abilityCooldowns,
+}: CharacterTabProps) {
+  const totalXPGainBonus = (player.globalGainMultiplier - 1 + (player.house === "atreides" ? 0.25 : 0)) * 100
+
   const stats = [
     { label: "Attack Power", value: player.attack, color: "text-red-400" },
     { label: "Defense Rating", value: player.defense, color: "text-blue-400" },
@@ -22,8 +34,15 @@ export function CharacterTab({ player, equipment, inventory, onEquipItem }: Char
       value: `${player.house === "fremen" ? "40%" : player.house === "harkonnen" ? "20%" : "0%"}`,
       color: "text-amber-400",
     },
-    { label: "XP Gain Bonus", value: `${player.house === "atreides" ? "25%" : "0%"}`, color: "text-purple-400" },
+    { label: "XP Gain Bonus", value: `${totalXPGainBonus.toFixed(1)}%`, color: "text-purple-400" },
   ]
+
+  const getCooldownRemaining = (abilityId: string) => {
+    const cooldownEnd = abilityCooldowns[abilityId]
+    if (!cooldownEnd) return 0
+    const remaining = cooldownEnd - Date.now()
+    return Math.max(0, Math.ceil(remaining / 1000))
+  }
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
@@ -61,7 +80,7 @@ export function CharacterTab({ player, equipment, inventory, onEquipItem }: Char
           <p className="text-xs text-stone-400 mt-3">Click an item in inventory to equip it.</p>
         </div>
 
-        {/* Character Statistics */}
+        {/* Character Statistics & Abilities */}
         <div className="bg-stone-800 p-6 rounded-lg border border-stone-600">
           <h3 className="text-xl font-semibold mb-4 text-amber-300">Character Statistics</h3>
           <div className="space-y-3 text-sm">
@@ -72,7 +91,55 @@ export function CharacterTab({ player, equipment, inventory, onEquipItem }: Char
               </p>
             ))}
           </div>
-          {/* Add skills, abilities, or other management options here */}
+
+          <div className="mt-6">
+            <h3 className="text-xl font-semibold mb-4 text-amber-300">Abilities</h3>
+            {player.unlockedAbilities.length === 0 ? (
+              <p className="text-sm text-stone-400 mb-4">Unlock powerful abilities as you level up!</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {player.unlockedAbilities.map((ability) => {
+                  const cooldownRemaining = getCooldownRemaining(ability.id)
+                  const isActive = player.activeAbility?.id === ability.id
+                  return (
+                    <button
+                      key={ability.id}
+                      onClick={() => onActivateAbility(ability)}
+                      disabled={cooldownRemaining > 0 || isActive}
+                      className={`w-full py-2 px-3 rounded-md font-semibold text-sm transition duration-150 ease-in-out
+                        ${isActive ? "bg-purple-800 text-white border border-purple-500 animate-pulse" : "bg-blue-600 hover:bg-blue-700 text-white"}
+                        ${cooldownRemaining > 0 ? "disabled:bg-stone-500 disabled:cursor-not-allowed" : ""}
+                      `}
+                      title={
+                        cooldownRemaining > 0
+                          ? `Cooldown: ${cooldownRemaining}s`
+                          : isActive
+                            ? `Active for ${Math.ceil((player.activeAbility!.duration - (Date.now() - (abilityCooldowns[ability.id] - ability.cooldown))) / 1000)}s`
+                            : ability.description
+                      }
+                    >
+                      {ability.icon} {ability.name}
+                      {cooldownRemaining > 0 && ` (${cooldownRemaining}s)`}
+                      {isActive && " (Active)"}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <h3 className="text-xl font-semibold mb-4 text-amber-300">Prestige</h3>
+            <p className="text-sm text-stone-300 mb-4">
+              Reach new heights of power by prestiging! Reset your progress for a significant bonus to future gains.
+            </p>
+            <button
+              onClick={onOpenPrestigeModal}
+              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-md transition duration-150 ease-in-out"
+            >
+              Ascend to Prestige {player.prestigeLevel + 1}
+            </button>
+          </div>
         </div>
       </div>
     </div>

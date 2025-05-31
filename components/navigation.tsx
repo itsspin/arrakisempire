@@ -10,6 +10,7 @@ const tabs = [
   { id: "character", label: "👤 Character" },
   { id: "empire", label: "🏗️ Empire" },
   { id: "multiplayer", label: "🌍 Multiplayer" },
+  { id: "updates", label: "📰 Updates" }, // New tab
 ]
 
 export function Navigation({ currentTab, onTabChange }: NavigationProps) {

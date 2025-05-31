@@ -26,115 +26,115 @@ export const STATIC_DATA = {
     sandRaider: {
       name: "Fremen Raider",
       icon: "🏹",
-      health: 60,
-      attack: 12,
+      health: 50,
+      attack: 10,
       defense: 6,
-      xp: 40,
-      loot: { solari: 30, spice: 10, water: 8 },
-      level: 1,
-      spawnChance: 0.4,
+      xp: 50,
+      loot: { solari: 35, spice: 12, water: 10 },
+      level: 1, // Base level
+      spawnChance: 0.5, // Very common
       description: "Desert nomad seeking spice and water.",
     },
     smuggler: {
       name: "Spice Smuggler",
       icon: "🥷",
-      health: 80,
-      attack: 18,
+      health: 70,
+      attack: 15,
       defense: 8,
-      xp: 60,
-      loot: { solari: 50, melange: 2, rareMaterials: 1 },
-      level: 2,
-      spawnChance: 0.25,
+      xp: 75,
+      loot: { solari: 60, melange: 3, rareMaterials: 1 },
+      level: 2, // Base level
+      spawnChance: 0.3, // Common
       description: "Black market dealer in illegal spice.",
     },
     harkonnenGuard: {
       name: "Harkonnen Guard",
       icon: "👤",
-      health: 100,
-      attack: 20,
+      health: 90,
+      attack: 18,
       defense: 10,
-      xp: 80,
-      loot: { solari: 60, plasteel: 8, rareMaterials: 2 },
-      level: 3,
-      spawnChance: 0.2,
+      xp: 100,
+      loot: { solari: 75, plasteel: 10, rareMaterials: 3 },
+      level: 3, // Base level
+      spawnChance: 0.15, // Less common
       description: "Brutal enforcer of Baron Harkonnen.",
     },
     sardaukar: {
       name: "Sardaukar Elite",
       icon: "⚔️",
-      health: 150,
-      attack: 30,
+      health: 140,
+      attack: 28,
       defense: 15,
-      xp: 150,
-      loot: { solari: 120, rareMaterials: 5, melange: 3 },
-      level: 5,
-      spawnChance: 0.1,
+      xp: 180,
+      loot: { solari: 140, rareMaterials: 6, melange: 4 },
+      level: 5, // Base level
+      spawnChance: 0.03, // Rare
       description: "Imperial super-soldier. Extremely dangerous.",
     },
     guildNavigator: {
       name: "Guild Navigator",
       icon: "👁️",
-      health: 200,
-      attack: 25,
+      health: 190,
+      attack: 24,
       defense: 20,
-      xp: 200,
-      loot: { melange: 8, rareMaterials: 8, solari: 200 },
-      level: 7,
-      spawnChance: 0.05,
+      xp: 250,
+      loot: { melange: 10, rareMaterials: 10, solari: 250 },
+      level: 7, // Base level
+      spawnChance: 0.008, // Very rare
       special: true,
       description: "Mutated spice addict with prescient abilities.",
     },
     mentat: {
       name: "Corrupted Mentat",
       icon: "🧠",
-      health: 180,
-      attack: 35,
+      health: 170,
+      attack: 32,
       defense: 12,
-      xp: 180,
-      loot: { solari: 150, melange: 5, rareMaterials: 6 },
-      level: 6,
-      spawnChance: 0.08,
+      xp: 220,
+      loot: { solari: 180, melange: 6, rareMaterials: 7 },
+      level: 6, // Base level
+      spawnChance: 0.008, // Very rare
       special: true,
       description: "Human computer driven mad by forbidden calculations.",
     },
     beastRabban: {
       name: "Beast Rabban",
       icon: "👹",
-      health: 400,
-      attack: 50,
+      health: 380,
+      attack: 45,
       defense: 25,
-      xp: 400,
-      loot: { solari: 1000, spice: 150, rareMaterials: 15, melange: 8 },
+      xp: 450,
+      loot: { solari: 1200, spice: 180, rareMaterials: 18, melange: 10 },
       boss: true,
-      level: 10,
-      spawnChance: 0.02,
+      level: 10, // Base level
+      spawnChance: 0.002, // Extremely rare
       description: "Harkonnen na-Baron. Ruthless and brutal.",
     },
     baronHarkonnen: {
       name: "Baron Vladimir Harkonnen",
       icon: "🦹",
-      health: 800,
-      attack: 70,
+      health: 750,
+      attack: 65,
       defense: 35,
-      xp: 800,
-      loot: { solari: 2500, spice: 300, rareMaterials: 30, melange: 20 },
+      xp: 900,
+      loot: { solari: 3000, spice: 350, rareMaterials: 35, melange: 25 },
       boss: true,
-      level: 20,
-      spawnChance: 0.01,
+      level: 20, // Base level
+      spawnChance: 0.001, // Ultra rare
       description: "The Baron himself. Master of schemes.",
     },
     sandworm: {
       name: "Shai-Hulud",
       icon: "🐛",
-      health: 1500,
-      attack: 120,
+      health: 1400,
+      attack: 110,
       defense: 50,
-      xp: 1500,
-      loot: { spice: 800, melange: 80, rareMaterials: 60 },
+      xp: 1700,
+      loot: { spice: 900, melange: 90, rareMaterials: 70 },
       boss: true,
-      level: 25,
+      level: 25, // Base level
       legendary: true,
-      spawnChance: 0.005,
+      spawnChance: 0.0005, // Legendary rare
       description: "The Great Sandworm. Maker of spice.",
     },
   },
@@ -269,4 +269,72 @@ export const STATIC_DATA = {
       duration: 420000,
     },
   ],
+  ABILITIES: {
+    mentatCalculation: {
+      id: "mentatCalculation",
+      name: "Mentat Calculation",
+      description: "Focus your mind, increasing critical chance and attack for a short duration.",
+      icon: "🧠",
+      levelRequired: 5,
+      cooldown: 60000, // 60 seconds
+      duration: 10000, // 10 seconds
+      effectType: "crit_boost",
+      effectValue: 25, // +25% crit chance
+    },
+    desertSurvival: {
+      id: "desertSurvival",
+      name: "Desert Survival",
+      description: "Harness the desert's resilience, regenerating health and energy over time.",
+      icon: "🌵",
+      levelRequired: 5,
+      cooldown: 90000, // 90 seconds
+      duration: 15000, // 15 seconds
+      effectType: "health_regen",
+      effectValue: 5, // Regenerate 5% max health/energy per second
+    },
+    theVoice: {
+      id: "theVoice",
+      name: "The Voice",
+      description: "Compel your foe with a powerful command, reducing their attack and defense.",
+      icon: "🗣️",
+      levelRequired: 10,
+      cooldown: 120000, // 120 seconds
+      duration: 8000, // 8 seconds
+      effectType: "attack_boost", // This will be a debuff on enemy, so effectively a player boost
+      effectValue: -30, // -30% enemy attack/defense
+    },
+    prescience: {
+      id: "prescience",
+      name: "Prescience",
+      description: "Glimpse the future, increasing your dodge chance and granting a chance to avoid all damage.",
+      icon: "🔮",
+      levelRequired: 15,
+      cooldown: 150000, // 150 seconds
+      duration: 10000, // 10 seconds
+      effectType: "dodge_boost",
+      effectValue: 20, // +20% dodge chance
+    },
+    sandwalk: {
+      id: "sandwalk",
+      name: "Sandwalk",
+      description: "Move silently across the dunes, reducing water consumption and increasing movement speed.",
+      icon: "👣",
+      levelRequired: 20,
+      cooldown: 180000, // 180 seconds
+      duration: 30000, // 30 seconds
+      effectType: "energy_regen", // Re-purposing for water efficiency/movement
+      effectValue: 50, // 50% reduction in water consumption
+    },
+    spiceTrance: {
+      id: "spiceTrance",
+      name: "Spice Trance",
+      description: "Enter a deep trance, massively boosting all resource gathering rates for a short time.",
+      icon: "✨",
+      levelRequired: 25,
+      cooldown: 240000, // 240 seconds
+      duration: 20000, // 20 seconds
+      effectType: "attack_boost", // Re-purposing for resource gathering
+      effectValue: 100, // +100% resource gathering
+    },
+  },
 }

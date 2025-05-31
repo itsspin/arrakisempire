@@ -1,6 +1,6 @@
 "use client"
 
-import type { Player, Enemy, Combat } from "@/types/game"
+import type { Player, Enemy, Combat, Ability } from "@/types/game"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { CONFIG } from "@/lib/constants"
 
@@ -14,6 +14,10 @@ interface CombatModalProps {
   onFlee: (success: boolean) => void
   onCombatEnd: (result: "win" | "lose" | "flee") => void
   addNotification: (message: string, type?: "success" | "error" | "warning" | "info" | "legendary") => void
+  onActivateAbility: (ability: Ability) => void // New prop for activating abilities
+  abilityCooldowns: Record<string, number> // New prop for ability cooldowns
+  onDefend: () => void // New prop for defend action
+  enemyLevel: number // New prop for dynamic target zone
 }
 
 export function CombatModal({
@@ -26,100 +30,81 @@ export function CombatModal({
   onFlee,
   onCombatEnd,
   addNotification,
+  onActivateAbility,
+  abilityCooldowns,
+  onDefend,
+  enemyLevel, // This prop is no longer directly used for spar bar, but kept for potential future scaling logic
 }: CombatModalProps) {
   const [currentLog, setCurrentLog] = useState<string[]>(combatState.log)
-  const [miniGameBarPosition, setMiniGameBarPosition] = useState(0)
-  const [miniGameRunning, setMiniGameRunning] = useState(false)
-  const miniGameRef = useRef<HTMLDivElement>(null)
-  const animationFrameRef = useRef<number>()
-  const startTimeRef = useRef<number>()
+  const logEndRef = useRef<HTMLDivElement>(null)
 
   const playerHealthPercent = (player.health / player.maxHealth) * 100
   const enemyHealthPercent = (enemy.currentHealth / enemy.health) * 100
 
+  // Scroll to bottom of combat log on new messages
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [currentLog])
+
+  // Update log when combatState.log changes in parent
   useEffect(() => {
     setCurrentLog(combatState.log)
-    if (combatState.active && combatState.turn === "player" && !combatState.miniGameActive) {
-      // Player's turn, prepare for mini-game
-      setMiniGameRunning(true)
-      startTimeRef.current = performance.now()
-      animationFrameRef.current = requestAnimationFrame(animateMiniGame)
-    } else if (combatState.active && combatState.turn === "enemy") {
-      // Enemy's turn, auto-attack after delay
-      const timer = setTimeout(() => {
-        handleEnemyTurn()
-      }, CONFIG.COMBAT_TURN_DELAY)
-      return () => clearTimeout(timer)
-    }
-  }, [combatState.active, combatState.turn, combatState.miniGameActive, combatState.log])
+  }, [combatState.log])
 
-  const animateMiniGame = (time: DOMHighResTimeStamp) => {
-    if (!startTimeRef.current) startTimeRef.current = time
-    const elapsed = time - startTimeRef.current
-    const progress = (elapsed / CONFIG.COMBAT_MINIGAME_DURATION) % 1
-    setMiniGameBarPosition(progress * 90) // 90% because bar is 10% wide
+  const handlePlayerAction = useCallback(
+    (actionType: "attack" | "defend" | "flee") => {
+      if (combatState.turn !== "player") return // Only allow action on player's turn
 
-    if (elapsed < CONFIG.COMBAT_MINIGAME_DURATION) {
-      animationFrameRef.current = requestAnimationFrame(animateMiniGame)
-    } else {
-      // Mini-game timed out, treat as a miss
-      handleMiniGameClick(false)
-    }
-  }
+      if (actionType === "attack") {
+        // Calculate player damage: base attack + weapon attack - enemy defense
+        let playerDamage = Math.max(1, player.attack + (player.equipment?.weapon?.attack || 0) - enemy.defense)
+        const isCrit = Math.random() * 100 < player.critChance
 
-  const handleMiniGameClick = useCallback(
-    (manualClick: boolean) => {
-      if (!miniGameRunning) return
-
-      cancelAnimationFrame(animationFrameRef.current!)
-      setMiniGameRunning(false)
-
-      const barElement = miniGameRef.current
-      if (!barElement) return
-
-      const barRect = barElement.getBoundingClientRect()
-      const targetStart = barRect.width * 0.4 // 40% start
-      const targetEnd = barRect.width * 0.6 // 60% end
-
-      const currentBarLeft = (miniGameBarPosition / 90) * barRect.width // Convert percentage to pixels
-
-      const miniGameSuccess = currentBarLeft >= targetStart && currentBarLeft <= targetEnd
-
-      // Calculate player damage
-      let playerDamage = Math.max(1, player.attack + (player.equipment.weapon?.attack || 0) - enemy.defense)
-      const isCrit = Math.random() * 100 < player.critChance
-      if (isCrit) {
-        playerDamage = Math.floor(playerDamage * 1.5) // 150% crit damage
+        if (isCrit) {
+          playerDamage = Math.floor(playerDamage * 1.5) // 150% crit damage
+        }
+        onPlayerAttack(playerDamage, isCrit, false) // miniGameSuccess is always false now
+      } else if (actionType === "defend") {
+        onDefend()
+      } else if (actionType === "flee") {
+        const success = Math.random() < CONFIG.FLEE_CHANCE
+        onFlee(success)
       }
-
-      if (!miniGameSuccess) {
-        playerDamage = Math.floor(playerDamage * 0.5) // Half damage on mini-game fail
-        addNotification("Mini-game failed! Reduced damage.", "warning")
-      }
-
-      onPlayerAttack(playerDamage, isCrit, miniGameSuccess)
     },
-    [miniGameRunning, miniGameBarPosition, player, enemy, onPlayerAttack, addNotification],
+    [combatState.turn, player, enemy, onPlayerAttack, onDefend, onFlee],
   )
 
-  const handleEnemyTurn = useCallback(() => {
-    let enemyDamage = Math.max(
-      1,
-      enemy.attack - (player.equipment.armor?.defense || 0) - (player.equipment.accessory?.defense || 0),
-    )
-    const isDodge = Math.random() * 100 < player.dodgeChance
-    if (isDodge) {
-      enemyDamage = 0 // No damage on dodge
-    }
-    onEnemyAttack(enemyDamage, isDodge)
-  }, [enemy, player, onEnemyAttack])
+  // This effect will trigger enemy's turn when combatState.turn becomes "enemy"
+  useEffect(() => {
+    if (combatState.active && combatState.turn === "enemy") {
+      // Simulate enemy thinking/delay before attacking
+      const enemyActionDelay = 1000 // 1 second delay for enemy to attack
+      const timer = setTimeout(() => {
+        // Calculate enemy damage: base attack - (player defense + armor defense + accessory defense)
+        const enemyDamage = Math.max(
+          1,
+          enemy.attack -
+            (player.defense + (player.equipment?.armor?.defense || 0) + (player.equipment?.accessory?.defense || 0)),
+        )
+        const isDodge = Math.random() * 100 < player.dodgeChance
 
-  const handleFleeAttempt = useCallback(() => {
-    const success = Math.random() < CONFIG.FLEE_CHANCE
-    onFlee(success)
-  }, [onFlee])
+        onEnemyAttack(enemyDamage, isDodge)
+      }, enemyActionDelay)
+
+      return () => clearTimeout(timer) // Cleanup timer if component unmounts or turn changes
+    }
+  }, [combatState.active, combatState.turn, enemy, player, onEnemyAttack])
+
+  const getCooldownRemaining = (abilityId: string) => {
+    const cooldownEnd = abilityCooldowns[abilityId]
+    if (!cooldownEnd) return 0
+    const remaining = cooldownEnd - Date.now()
+    return Math.max(0, Math.ceil(remaining / 1000))
+  }
 
   if (!isOpen) return null
+
+  const isPlayerTurn = combatState.turn === "player" && combatState.active
 
   return (
     <div className="modal-overlay">
@@ -145,10 +130,10 @@ export function CombatModal({
               </div>
             </div>
             <div className="mt-2 text-sm">
-              <p>Attack: {player.attack + (player.equipment.weapon?.attack || 0)}</p>
+              <p>Attack: {player.attack + (player.equipment?.weapon?.attack || 0)}</p>
               <p>
                 Defense:{" "}
-                {player.defense + (player.equipment.armor?.defense || 0) + (player.equipment.accessory?.defense || 0)}
+                {player.defense + (player.equipment?.armor?.defense || 0) + (player.equipment?.accessory?.defense || 0)}
               </p>
             </div>
           </div>
@@ -182,55 +167,75 @@ export function CombatModal({
           {currentLog.map((entry, index) => (
             <p key={index} dangerouslySetInnerHTML={{ __html: entry }}></p>
           ))}
+          <div ref={logEndRef} /> {/* Scroll target */}
         </div>
 
-        {/* Mini-game and Actions */}
+        {/* Actions */}
         <div className="flex flex-col gap-4">
-          {combatState.turn === "player" && combatState.active && (
+          {combatState.active && (
             <>
               <p className="text-center text-amber-300 font-semibold">
-                {miniGameRunning ? "Click the bar when it's in the green zone!" : "Prepare your attack..."}
+                {isPlayerTurn ? "Your Turn!" : "Enemy's Turn..."}
               </p>
-              <div
-                className="mini-game-container"
-                ref={miniGameRef}
-                onClick={() => handleMiniGameClick(true)}
-                style={{ pointerEvents: miniGameRunning ? "auto" : "none" }}
-              >
-                <div
-                  className="mini-game-target"
-                  style={{ left: "40%", width: "20%" }} // Green zone from 40% to 60%
-                ></div>
-                {miniGameRunning && (
-                  <div
-                    className="mini-game-bar"
-                    style={{
-                      left: `${miniGameBarPosition}%`,
-                      animationDuration: `${CONFIG.COMBAT_MINIGAME_DURATION / 1000}s`,
-                    }}
-                  ></div>
-                )}
-              </div>
               <div className="flex gap-4 justify-center">
                 <button
-                  onClick={() => handleMiniGameClick(true)}
-                  disabled={!miniGameRunning}
+                  onClick={() => handlePlayerAction("attack")}
+                  disabled={!isPlayerTurn}
                   className="action-button bg-green-600 hover:bg-green-700"
                 >
                   Attack!
                 </button>
                 <button
-                  onClick={handleFleeAttempt}
-                  disabled={!combatState.active || combatState.turn !== "player"}
+                  onClick={() => handlePlayerAction("defend")}
+                  disabled={!isPlayerTurn}
+                  className="action-button bg-blue-600 hover:bg-blue-700"
+                >
+                  Defend
+                </button>
+                <button
+                  onClick={() => handlePlayerAction("flee")}
+                  disabled={!isPlayerTurn}
                   className="action-button bg-stone-600 hover:bg-stone-700"
                 >
                   Flee
                 </button>
               </div>
+
+              {/* Abilities in Combat */}
+              {player.unlockedAbilities.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-lg font-semibold text-amber-300 mb-2 text-center">Combat Abilities</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {player.unlockedAbilities.map((ability) => {
+                      const cooldownRemaining = getCooldownRemaining(ability.id)
+                      const isActive = player.activeAbility?.id === ability.id
+                      return (
+                        <button
+                          key={ability.id}
+                          onClick={() => onActivateAbility(ability)}
+                          disabled={cooldownRemaining > 0 || isActive || !isPlayerTurn}
+                          className={`w-full py-2 px-1 rounded-md font-semibold text-xs transition duration-150 ease-in-out
+                          ${isActive ? "bg-purple-800 text-white border border-purple-500 animate-pulse" : "bg-blue-600 hover:bg-blue-700 text-white"}
+                          ${cooldownRemaining > 0 || !isPlayerTurn ? "disabled:bg-stone-500 disabled:cursor-not-allowed" : ""}
+                        `}
+                          title={
+                            cooldownRemaining > 0
+                              ? `Cooldown: ${cooldownRemaining}s`
+                              : isActive
+                                ? `Active for ${Math.ceil(Math.max(0, abilityCooldowns[ability.id] - ability.cooldown + ability.duration - Date.now()) / 1000)}s`
+                                : ability.description
+                          }
+                        >
+                          {ability.icon} {ability.name}
+                          {cooldownRemaining > 0 && ` (${cooldownRemaining}s)`}
+                          {isActive && " (Active)"}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </>
-          )}
-          {combatState.turn === "enemy" && combatState.active && (
-            <p className="text-center text-red-300 font-semibold">Enemy's turn...</p>
           )}
           {!combatState.active && (
             <button onClick={() => onCombatEnd("flee")} className="action-button bg-stone-600 hover:bg-stone-700">

@@ -80,6 +80,7 @@ body {
   transition: all 0.2s ease;
   position: relative;
   background: linear-gradient(135deg, #78350f, #451a03);
+  color: #fed7aa; /* Default text color for desert cells */
 }
 
 .map-cell:hover {
@@ -106,18 +107,21 @@ body {
 .map-cell-enemy {
   background: linear-gradient(135deg, #ef4444, #dc2626) !important;
   color: white !important;
+  box-shadow: 0 0 8px #ef4444; /* Added distinct shadow */
 }
 
 .map-cell-boss {
   background: linear-gradient(135deg, #7e22ce, #6b21a8) !important;
   color: white !important;
   animation: pulse-boss 2s infinite alternate;
+  box-shadow: 0 0 15px #7e22ce; /* Added distinct shadow */
 }
 
 .map-cell-special-enemy {
   background: linear-gradient(135deg, #f97316, #ea580c) !important;
   color: white !important;
   animation: shimmer 3s infinite;
+  box-shadow: 0 0 10px #f97316; /* Added distinct shadow */
 }
 
 .map-cell-sandworm {
@@ -129,16 +133,19 @@ body {
 .map-cell-resource-spice {
   background: linear-gradient(135deg, #ea580c, #f97316) !important;
   color: #fed7aa !important;
+  filter: brightness(1.1); /* Enhanced brightness */
 }
 
 .map-cell-resource-water {
   background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
   color: white !important;
+  filter: brightness(1.1); /* Enhanced brightness */
 }
 
 .map-cell-resource-plasteel {
   background: linear-gradient(135deg, #64748b, #475569) !important;
   color: white !important;
+  filter: brightness(1.1); /* Enhanced brightness */
 }
 
 .map-cell-settlement {
@@ -154,6 +161,7 @@ body {
   background: linear-gradient(45deg, #8b5cf6, #a855f7) !important;
   color: white !important;
   animation: world-event-pulse 2s infinite;
+  filter: brightness(1.1); /* Enhanced brightness */
 }
 
 .map-cell-desert {
@@ -167,21 +175,8 @@ body {
   box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
-.map-cell-enemy,
-.map-cell-boss,
-.map-cell-special-enemy {
-  /* Ensure these have distinct backgrounds already, if not, enhance them */
-  /* Example: Add a subtle glow or border */
-  box-shadow: 0 0 8px currentColor;
-}
-
-.map-cell-resource-spice,
-.map-cell-resource-water,
-.map-cell-resource-plasteel,
-.map-cell-world-event {
-  /* Ensure these have distinct backgrounds already, if not, enhance them */
-  filter: brightness(1.1);
-}
+/* Removed redundant map-cell-enemy, map-cell-boss, map-cell-special-enemy shadow rules */
+/* Removed redundant map-cell-resource, map-cell-world-event filter rules */
 
 @keyframes pulse-player {
   0%,
@@ -384,6 +379,7 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
   max-height: 80vh;
   overflow-y: auto;
+  position: relative; /* For the close button */
 }
 
 .player-color-red {
@@ -606,4 +602,23 @@ body {
   100% {
     left: 90%; /* Moves from 0% to 90% (100% - bar width) */
   }
+}
+
+/* Custom scrollbar for chat */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #292524;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #52525b;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
 }

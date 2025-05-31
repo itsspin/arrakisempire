@@ -11,10 +11,18 @@ import { EmpireTab } from "@/components/empire-tab"
 import { TerritoryModal } from "@/components/modals/territory-modal"
 import { NotificationArea } from "@/components/notification-area"
 import { CombatModal } from "@/components/modals/combat-modal"
-import { NameSelectionModal } from "@/components/modals/name-selection-modal" // New import
-import { HouseSelectionModal } from "@/components/modals/house-selection-modal" // New import
-import { ActionsPanel } from "@/components/actions-panel" // Moved from sidebar
-import { Leaderboard } from "@/components/leaderboard" // Moved from sidebar
+import { NameSelectionModal } from "@/components/modals/name-selection-modal"
+import { HouseSelectionModal } from "@/components/modals/house-selection-modal"
+import { ActionsPanel } from "@/components/actions-panel"
+import { Leaderboard } from "@/components/leaderboard"
+import { PlayerStatsPanel } from "@/components/player-stats-panel"
+import { HousesPanel } from "@/components/houses-panel" // Changed from modal
+import { WorldEventsPanel } from "@/components/world-events-panel" // Changed from modal
+import { PrestigeModal } from "@/components/modals/prestige-modal"
+import { WorldChat } from "@/components/world-chat"
+import { TerritoryChart } from "@/components/territory-chart"
+import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
+import { TradePanel } from "@/components/trade-panel" // New import
 
 import type {
   GameState,
@@ -27,11 +35,24 @@ import type {
   Player,
   Combat,
   Resources,
+  ChatMessage,
+  Ability,
 } from "@/types/game"
 import { CONFIG, PLAYER_COLORS } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
-import { auth, db } from "@/lib/firebase" // Import Firebase for conceptual integration
-import { doc, getDoc, setDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore"
 import { signInAnonymously } from "firebase/auth"
 
 // Helper to get a random integer between min and max (inclusive)
@@ -107,9 +128,10 @@ const generateMockEnemies = (): Record<string, Enemy> => {
       level: enemyData.level,
       description: enemyData.description,
       position: { x, y },
-      boss: enemyData.boss,
-      special: enemyData.special,
-      legendary: enemyData.legendary,
+      // Ensure boolean properties are explicitly true or false, not undefined
+      boss: enemyData.boss || false,
+      special: enemyData.special || false,
+      legendary: enemyData.legendary || false,
     }
   }
   return enemies
@@ -152,70 +174,87 @@ const generateMockItems = (): Record<string, Item> => {
       type: itemData.type,
       rarity: itemData.rarity,
       description: itemData.description,
-      attack: itemData.attack,
-      defense: itemData.defense,
-      special: itemData.special,
+      // Ensure attack and defense are always numbers, defaulting to 0 if undefined
+      attack: itemData.attack ?? 0,
+      defense: itemData.defense ?? 0,
+      // Ensure special is always a string or null, defaulting to null if undefined
+      special: itemData.special ?? null,
     }
   }
   return items
 }
 
-const initialGameState: GameState = {
-  player: {
-    id: null, // Will be set by Firebase Auth
-    name: "Wanderer",
-    color: PLAYER_COLORS[0],
-    level: 1,
-    experience: 0,
-    experienceToNext: CONFIG.XP_BASE,
-    health: 120,
-    maxHealth: 120,
-    energy: 150,
-    maxEnergy: 150,
-    attack: 15,
-    defense: 10,
-    critChance: 8,
-    dodgeChance: 15,
-    position: { x: 100, y: 100 },
-    basePosition: { x: 100, y: 100 },
-    house: null,
-    rank: 100,
-    rankName: "Sand Nomad",
-    power: 0,
-    prestigeLevel: 0,
-    territories: [],
-    lifetimeSpice: 0,
-    totalEnemiesDefeated: 0,
-    energyProductionRate: CONFIG.ENERGY_REGEN_RATE,
-    created: Date.now(),
-    lastActive: Date.now(),
-    investments: {
-      harvester_fleet: {
-        name: "Spice Harvester Fleet",
-        description: "Deploy automated harvesters.",
-        level: 0,
-        costToUpgrade: 500,
-        productionRate: 0,
-      },
-      processing_plant: {
-        name: "Spice Processing Plant",
-        description: "Refine raw Spice.",
-        level: 0,
-        costToUpgrade: 1000,
-        productionRate: 0,
-      },
-      trade_routes: {
-        name: "Interstellar Trade Routes",
-        description: "Establish trade routes.",
-        level: 0,
-        costToUpgrade: 2000,
-        productionRate: 0,
-      },
+const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => ({
+  id: id,
+  name: "Wanderer",
+  color: PLAYER_COLORS[prestigeLevel % PLAYER_COLORS.length], // Cycle colors on prestige
+  level: 1,
+  experience: 0,
+  experienceToNext: CONFIG.XP_BASE,
+  health: 120,
+  maxHealth: 120,
+  energy: 150,
+  maxEnergy: 150,
+  attack: 15,
+  defense: 10,
+  critChance: 8,
+  dodgeChance: 15,
+  position: { x: 100, y: 100 },
+  basePosition: { x: 100, y: 100 },
+  house: null,
+  rank: 100,
+  rankName: "Sand Nomad",
+  power: 0,
+  prestigeLevel: prestigeLevel,
+  globalGainMultiplier: 1 + prestigeLevel * 0.05, // Base 5% per prestige level
+  territories: [], // Territories are preserved across prestige
+  lifetimeSpice: 0,
+  totalEnemiesDefeated: 0,
+  energyProductionRate: CONFIG.ENERGY_REGEN_RATE,
+  created: Date.now(),
+  lastActive: Date.now(),
+  investments: {
+    harvester_fleet: {
+      name: "Spice Harvester Fleet",
+      description: "Deploy automated harvesters.",
+      level: 0,
+      costToUpgrade: 500,
+      productionRate: 0,
     },
-    spicePerClick: 1,
-    spiceClickUpgradeCost: 50,
+    processing_plant: {
+      name: "Spice Processing Plant",
+      description: "Refine raw Spice.",
+      level: 0,
+      costToUpgrade: 1000,
+      productionRate: 0,
+    },
+    trade_routes: {
+      name: "Interstellar Trade Routes",
+      description: "Establish trade routes.",
+      level: 0,
+      costToUpgrade: 2000,
+      productionRate: 0,
+    },
   },
-  resources: { spice: 100, water: 200, solari: 2500, plasteel: 150, rareMaterials: 10, melange: 5 },
+  spicePerClick: 1,
+  spiceClickUpgradeCost: 50,
+  unlockedAbilities: [], // Initialize empty
+  activeAbility: null, // Initialize null
+  isDefending: false, // New: Initialize false
+})
+
+const getInitialResourcesState = (): Resources => ({
+  spice: 100,
+  water: 200,
+  solari: 2500,
+  plasteel: 150,
+  rareMaterials: 10,
+  melange: 5,
+})
+
+const initialGameState: GameState = {
+  player: getInitialPlayerState(null),
+  resources: getInitialResourcesState(),
   equipment: { weapon: null, armor: null, accessory: null },
   inventory: new Array(CONFIG.MAX_INVENTORY).fill(null),
   buildings: {},
@@ -227,8 +266,7 @@ const initialGameState: GameState = {
     playerHealthAtStart: 0,
     enemyHealthAtStart: 0,
     combatRound: 0,
-    miniGameActive: false,
-    miniGameResult: null,
+    // Removed miniGameActive, miniGameResult, turnStartTime
   },
   currentTab: "game",
   gameInitialized: false,
@@ -275,18 +313,30 @@ const initialGameState: GameState = {
   isCombatModalOpen: false,
   isTradingModalOpen: false,
   isTerritoryModalOpen: false,
+  // Removed isHousesModalOpen, isWorldEventsModalOpen, isTradingModalOpen
+  isPrestigeModalOpen: false,
+  isAbilitySelectionModalOpen: false,
   selectedTerritoryCoords: null,
   notifications: [],
+  chatMessages: [],
+  abilityCooldowns: {},
 }
 
 export default function ArrakisGamePage() {
   const [gameState, setGameState] = useState<GameState>(initialGameState)
   const [isLoading, setIsLoading] = useState(true)
   const [itemRespawnQueue, setItemRespawnQueue] = useState<Record<string, { item: Item; respawnTime: number }>>({})
+  const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
 
   // Ref to track the last time a general notification was shown
   const lastGeneralNotificationTime = useRef(0)
   const GENERAL_NOTIFICATION_COOLDOWN = 1000 // 1 second cooldown for general notifications
+
+  // Ref to hold the latest gameState for intervals without re-triggering effects
+  const gameStateRef = useRef(gameState)
+  useEffect(() => {
+    gameStateRef.current = gameState
+  }, [gameState])
 
   const addNotification = useCallback((message: string, type: GameState["notifications"][0]["type"] = "info") => {
     const now = Date.now()
@@ -312,7 +362,195 @@ export default function ArrakisGamePage() {
       notifications: [...prev.notifications, { id: now.toString(), message, type }],
     }))
     lastGeneralNotificationTime.current = now
+  }, []) // Empty dependency array makes this function stable
+
+  useEffect(() => {
+    const initGame = async () => {
+      console.log("Initializing game...")
+      setIsLoading(true)
+      try {
+        console.log("Attempting Firebase anonymous sign-in...")
+        const userCredential = await signInAnonymously(auth)
+        const userId = userCredential.user.uid
+        console.log("Firebase signed in anonymously. User ID:", userId)
+
+        const playerDocRef = doc(db, "players", userId)
+        console.log("Attempting to fetch player document...")
+        const playerDocSnap = await getDoc(playerDocRef)
+
+        if (playerDocSnap.exists()) {
+          console.log("Player document found. Loading saved game state.")
+          const savedState = playerDocSnap.data() as GameState
+          setGameState(savedState)
+          addNotification(`Welcome back, ${savedState.player.name}!`, "legendary")
+        } else {
+          console.log("No player document found. Starting new game.")
+          setGameState((prev) => ({
+            ...prev,
+            player: { ...prev.player, id: userId, unlockedAbilities: [], activeAbility: null, isDefending: false }, // Ensure abilities and isDefending are initialized
+            isNameModalOpen: true,
+            gameInitialized: false,
+            abilityCooldowns: {}, // Initialize cooldowns
+          }))
+        }
+        console.log("Game initialization complete.")
+      } catch (error) {
+        console.error("Error during game initialization:", error)
+        if (error instanceof Error) {
+          addNotification(`Failed to load game: ${error.message}. Please check console for details.`, "error")
+        } else {
+          addNotification("An unknown error occurred during game loading. Please try again.", "error")
+        }
+      } finally {
+        console.log("Setting isLoading to false.")
+        setIsLoading(false)
+      }
+    }
+    initGame()
+  }, []) // Empty dependency array ensures this runs only once on mount
+
+  // --- Chat Logic ---
+  useEffect(() => {
+    const q = query(collection(db, "chatMessages"), orderBy("timestamp", "asc"), limit(50))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const messages: ChatMessage[] = []
+      snapshot.forEach((doc) => {
+        messages.push(doc.data() as ChatMessage)
+      })
+      setGameState((prev) => ({ ...prev, chatMessages: messages }))
+    })
+
+    return () => unsubscribe()
   }, [])
+
+  const handleSendMessage = useCallback(
+    async (message: string) => {
+      if (!gameState.player.id || !gameState.player.name || message.trim() === "") {
+        addNotification("Cannot send empty message or player not initialized.", "warning")
+        return
+      }
+      try {
+        await addDoc(collection(db, "chatMessages"), {
+          senderId: gameState.player.id,
+          senderName: gameState.player.name,
+          senderColor: gameState.player.color,
+          message: message.trim(),
+          timestamp: serverTimestamp(),
+        })
+      } catch (error) {
+        console.error("Error sending message:", error)
+        addNotification("Failed to send message.", "error")
+      }
+    },
+    [gameState.player.id, gameState.player.name, gameState.player.color, addNotification],
+  )
+
+  // --- Ability System Logic ---
+  const handleSelectAbility = useCallback(
+    (abilityId: string) => {
+      setGameState((prev) => {
+        const selectedAbility = Object.values(STATIC_DATA.ABILITIES).find((a) => a.id === abilityId)
+        if (!selectedAbility) return prev
+
+        const newUnlockedAbilities = [...prev.player.unlockedAbilities, selectedAbility]
+        addNotification(`Ability Unlocked: ${selectedAbility.name}!`, "legendary")
+
+        return {
+          ...prev,
+          player: { ...prev.player, unlockedAbilities: newUnlockedAbilities },
+          isAbilitySelectionModalOpen: false,
+        }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleActivateAbility = useCallback(
+    (ability: Ability) => {
+      setGameState((prev) => {
+        const now = Date.now()
+        if (prev.abilityCooldowns[ability.id] && prev.abilityCooldowns[ability.id] > now) {
+          addNotification(`Ability ${ability.name} is on cooldown!`, "warning")
+          return prev
+        }
+
+        const newPlayer = { ...prev.player }
+        const newAbilityCooldowns = { ...prev.abilityCooldowns }
+        let notificationMessage = ""
+
+        // Apply temporary effects
+        switch (ability.effectType) {
+          case "attack_boost":
+            newPlayer.attack += ability.effectValue
+            notificationMessage = `Your attack increased by ${ability.effectValue}!`
+            break
+          case "defense_boost":
+            newPlayer.defense += ability.effectValue
+            notificationMessage = `Your defense increased by ${ability.effectValue}!`
+            break
+          case "crit_boost":
+            newPlayer.critChance += ability.effectValue
+            notificationMessage = `Your critical chance increased by ${ability.effectValue}%!`
+            break
+          case "dodge_boost":
+            newPlayer.dodgeChance += ability.effectValue
+            notificationMessage = `Your dodge chance increased by ${ability.effectValue}%!`
+            break
+          case "health_regen":
+            // For health/energy regen, apply a continuous effect over duration
+            // This will be handled in the gameTick
+            notificationMessage = `You begin regenerating health and energy!`
+            break
+          case "energy_regen":
+            // For water efficiency/movement, apply a continuous effect over duration
+            notificationMessage = `Your water consumption is reduced!`
+            break
+          case "stun":
+            // Stun effect would need to be handled in combat modal directly
+            notificationMessage = `You attempt to stun your foe!`
+            break
+          default:
+            break
+        }
+
+        newPlayer.activeAbility = ability
+        newAbilityCooldowns[ability.id] = now + ability.cooldown
+
+        addNotification(`Activated ${ability.name}! ${notificationMessage}`, "info")
+
+        // Set a timeout to remove the effect
+        setTimeout(() => {
+          setGameState((currentPrev) => {
+            if (currentPrev.player.activeAbility?.id !== ability.id) return currentPrev // Already replaced or removed
+
+            const resetPlayer = { ...currentPrev.player }
+            switch (ability.effectType) {
+              case "attack_boost":
+                resetPlayer.attack = Math.max(0, resetPlayer.attack - ability.effectValue)
+                break
+              case "defense_boost":
+                resetPlayer.defense = Math.max(0, resetPlayer.defense - ability.effectValue)
+                break
+              case "crit_boost":
+                resetPlayer.critChance = Math.max(0, resetPlayer.critChance - ability.effectValue)
+                break
+              case "dodge_boost":
+                resetPlayer.dodgeChance = Math.max(0, resetPlayer.dodgeChance - ability.effectValue)
+                break
+              default:
+                break
+            }
+            resetPlayer.activeAbility = null
+            addNotification(`${ability.name} effect ended.`, "info")
+            return { ...currentPrev, player: resetPlayer }
+          })
+        }, ability.duration)
+
+        return { ...prev, player: newPlayer, abilityCooldowns: newAbilityCooldowns }
+      })
+    },
+    [addNotification],
+  )
 
   // --- Combat Logic ---
   // handleCombatEnd must be declared before handlePlayerAttack, handleEnemyAttack, handleFlee
@@ -332,18 +570,48 @@ export default function ArrakisGamePage() {
 
       if (result === "win") {
         // Grant XP
-        newPlayer.experience += enemyInstance.xp
+        let xpGained = enemyInstance.xp
+        // Apply global gain multiplier from prestige
+        xpGained = Math.floor(xpGained * newPlayer.globalGainMultiplier)
+
+        // Apply house bonus if Atreides
+        if (newPlayer.house === "atreides") {
+          xpGained = Math.floor(xpGained * 1.25) // +25% XP gain
+        }
+
+        newPlayer.experience += xpGained
         if (newPlayer.experience >= newPlayer.experienceToNext) {
           newPlayer.level++
           newPlayer.experience -= newPlayer.experienceToNext
           newPlayer.experienceToNext = Math.floor(newPlayer.experienceToNext * CONFIG.XP_FACTOR)
-          newPlayer.maxHealth += 10
+          newPlayer.maxHealth += 15
           newPlayer.health = newPlayer.maxHealth
-          newPlayer.maxEnergy += 5
+          newPlayer.maxEnergy += 8
           newPlayer.energy = newPlayer.maxEnergy
-          newPlayer.attack += 2
-          newPlayer.defense += 1
+          newPlayer.attack += 3
+          newPlayer.defense += 2
           addNotification(`You leveled up to Level ${newPlayer.level}!`, "legendary")
+
+          // Check for ability unlock
+          if (newPlayer.level % 5 === 0 && newPlayer.level <= 25) {
+            const allAbilities = Object.values(STATIC_DATA.ABILITIES)
+            const unlearnedAbilities = allAbilities.filter(
+              (ability) =>
+                ability.levelRequired <= newPlayer.level &&
+                !newPlayer.unlockedAbilities.some((ua) => ua.id === ability.id),
+            )
+
+            if (unlearnedAbilities.length > 0) {
+              // Select 3 random unique abilities, or fewer if not enough
+              const abilitiesToOffer: Ability[] = []
+              const shuffled = [...unlearnedAbilities].sort(() => 0.5 - Math.random())
+              for (let i = 0; i < Math.min(3, shuffled.length); i++) {
+                abilitiesToOffer.push(shuffled[i])
+              }
+              setAvailableAbilitiesForSelection(abilitiesToOffer)
+              setGameState((prev) => ({ ...prev, isAbilitySelectionModalOpen: true }))
+            }
+          }
         }
 
         // Grant Loot (resources)
@@ -391,8 +659,7 @@ export default function ArrakisGamePage() {
         playerHealthAtStart: 0,
         enemyHealthAtStart: 0,
         combatRound: 0,
-        miniGameActive: false,
-        miniGameResult: null,
+        // Removed miniGameActive, miniGameResult, turnStartTime
       }
 
       return {
@@ -411,15 +678,26 @@ export default function ArrakisGamePage() {
   const handlePlayerAttack = useCallback(
     (damage: number, isCrit: boolean, miniGameSuccess: boolean) => {
       setGameState((prev) => {
-        if (!prev.combat.active || !prev.combat.enemy) return prev
+        if (!prev.combat.active || !prev.combat.enemy || prev.combat.turn !== "player") return prev // Ensure it's player's turn
 
         const newCombat = { ...prev.combat }
         const newEnemy = { ...newCombat.enemy }
-        const newPlayer = { ...prev.player }
+        const newPlayer = { ...prev.player, isDefending: false } // Reset defending state
 
-        newEnemy.currentHealth = Math.max(0, newEnemy.currentHealth - damage)
+        // Apply active ability effects to player's outgoing damage
+        let finalDamage = damage
+        if (newPlayer.activeAbility?.effectType === "attack_boost") {
+          finalDamage = Math.floor(finalDamage * (1 + newPlayer.activeAbility.effectValue / 100))
+        }
+        // If "The Voice" is active, it debuffs the enemy's defense
+        if (newPlayer.activeAbility?.effectType === "attack_boost" && newPlayer.activeAbility.id === "theVoice") {
+          newEnemy.defense = Math.max(0, newEnemy.defense + STATIC_DATA.ABILITIES.theVoice.effectValue) // effectValue is negative for debuff
+        }
+
+        newEnemy.currentHealth = Math.max(0, newEnemy.currentHealth - finalDamage)
+        newCombat.enemy = newEnemy // Crucial: Update the enemy object in newCombat
         newCombat.log.push(
-          `<p class="log-player">You attacked ${newEnemy.name} for <span class="${isCrit ? "log-crit" : ""}">${damage}</span> damage!${isCrit ? " (Critical Hit!)" : ""}${!miniGameSuccess ? " (Mini-game Failed)" : ""}</p>`,
+          `<p class="log-player">You attacked ${newEnemy.name} for <span class="${isCrit ? "log-crit" : ""}">${finalDamage}</span> damage!${isCrit ? " (Critical Hit!)" : ""}</p>`,
         )
 
         if (newEnemy.currentHealth <= 0) {
@@ -431,7 +709,7 @@ export default function ArrakisGamePage() {
           // Continue combat, switch to enemy turn
           newCombat.turn = "enemy"
           newCombat.combatRound++
-          newCombat.miniGameActive = false
+          // Removed miniGameActive, turnStartTime
           return { ...prev, combat: newCombat, player: newPlayer }
         }
       })
@@ -439,32 +717,75 @@ export default function ArrakisGamePage() {
     [addNotification, handleCombatEnd],
   )
 
+  const handleDefend = useCallback(() => {
+    setGameState((prev) => {
+      if (!prev.combat.active || prev.combat.turn !== "player") return prev
+
+      const newCombat = { ...prev.combat }
+      const newPlayer = { ...prev.player, isDefending: true } // Set defending state
+      newCombat.log.push(`<p class="log-player">You brace for impact, increasing your defense!</p>`)
+      newCombat.turn = "enemy"
+      newCombat.combatRound++
+      // Removed miniGameActive, turnStartTime
+      addNotification("You chose to Defend!", "info")
+      return { ...prev, combat: newCombat, player: newPlayer }
+    })
+  }, [addNotification])
+
   const handleEnemyAttack = useCallback(
     (damage: number, isDodge: boolean) => {
       setGameState((prev) => {
-        if (!prev.combat.active || !prev.combat.enemy) return prev
+        if (!prev.combat.active || !prev.combat.enemy || prev.combat.turn !== "enemy") return prev // Ensure it's enemy's turn
 
         const newCombat = { ...prev.combat }
-        const newPlayer = { ...prev.player }
+        const newPlayer = { ...prev.player, isDefending: false } // Reset defending state after enemy attacks
+        const enemyInstance = newCombat.enemy! // Ensure enemy is not null
 
-        if (isDodge) {
+        // Apply active ability effects to player's incoming damage / dodge chance
+        let finalDamage = damage
+        let currentIsDodge = isDodge
+
+        if (newPlayer.activeAbility?.effectType === "defense_boost") {
+          finalDamage = Math.max(0, finalDamage - newPlayer.activeAbility.effectValue)
+        }
+        if (newPlayer.activeAbility?.effectType === "dodge_boost") {
+          // Increase effective dodge chance
+          currentIsDodge = currentIsDodge || Math.random() * 100 < newPlayer.activeAbility.effectValue
+        }
+        // If "The Voice" was active, enemy's attack might have been debuffed
+        if (newPlayer.activeAbility?.effectType === "attack_boost" && newPlayer.activeAbility.id === "theVoice") {
+          finalDamage = Math.max(
+            0,
+            finalDamage + (STATIC_DATA.ABILITIES.theVoice.effectValue / 100) * enemyInstance.attack,
+          )
+        }
+
+        // Apply Defend action bonus
+        let defenseBonus = 0
+        if (prev.player.isDefending) {
+          defenseBonus = Math.floor(newPlayer.defense * 0.5) // Example: +50% of player's defense
+          newCombat.log.push(`<p class="log-info">Your defense held strong!</p>`)
+        }
+        finalDamage = Math.max(0, finalDamage - defenseBonus)
+
+        if (currentIsDodge) {
           newCombat.log.push(
-            `<p class="log-enemy">${newCombat.enemy!.name} attacked, but you <span class="log-dodge">dodged</span> the attack!</p>`,
+            `<p class="log-enemy">${enemyInstance.name} attacked, but you <span class="log-dodge">dodged</span> the attack!</p>`,
           )
         } else {
-          newPlayer.health = Math.max(0, newPlayer.health - damage)
-          newCombat.log.push(`<p class="log-enemy">${newCombat.enemy!.name} attacked you for ${damage} damage!</p>`)
+          newPlayer.health = Math.max(0, newPlayer.health - finalDamage)
+          newCombat.log.push(`<p class="log-enemy">${enemyInstance.name} attacked you for ${finalDamage} damage!</p>`)
         }
 
         if (newPlayer.health <= 0) {
           // Player defeated
-          newCombat.log.push(`<p class="log-error">You have been defeated by ${newCombat.enemy!.name}!</p>`)
+          newCombat.log.push(`<p class="log-error">You have been defeated by ${enemyInstance.name}!</p>`)
           addNotification("You have been defeated!", "error")
-          return handleCombatEnd("lose", newPlayer, newCombat.enemy, newCombat, prev.resources, prev.map)
+          return handleCombatEnd("lose", newPlayer, enemyInstance, newCombat, prev.resources, prev.map)
         } else {
-          // Continue combat, switch to player turn
           newCombat.turn = "player"
-          newCombat.miniGameActive = true // Re-activate mini-game for player's next turn
+          newCombat.combatRound++
+          // Removed miniGameActive, turnStartTime
           return { ...prev, combat: newCombat, player: newPlayer }
         }
       })
@@ -475,10 +796,10 @@ export default function ArrakisGamePage() {
   const handleFlee = useCallback(
     (success: boolean) => {
       setGameState((prev) => {
-        if (!prev.combat.active || !prev.combat.enemy) return prev
+        if (!prev.combat.active || !prev.combat.enemy || prev.combat.turn !== "player") return prev // Ensure it's player's turn
 
         const newCombat = { ...prev.combat }
-        const newPlayer = { ...prev.player }
+        const newPlayer = { ...prev.player, isDefending: false } // Reset defending state
 
         if (success) {
           newCombat.log.push(`<p class="log-info">You successfully fled from ${newCombat.enemy.name}.</p>`)
@@ -488,12 +809,20 @@ export default function ArrakisGamePage() {
           newCombat.log.push(`<p class="log-error">Failed to flee! ${newCombat.enemy.name} gets a free attack!</p>`)
           addNotification("Flee attempt failed!", "error")
           // Enemy gets a free attack
-          const enemyDamage = Math.max(
+          let enemyDamage = Math.max(
             1,
             newCombat.enemy.attack -
-              (newPlayer.equipment.armor?.defense || 0) -
-              (newPlayer.equipment.accessory?.defense || 0),
+              (newPlayer.equipment?.armor?.defense || 0) -
+              (newPlayer.equipment?.accessory?.defense || 0),
           )
+          // Apply active ability effects to player's incoming damage
+          if (newPlayer.activeAbility?.effectType === "defense_boost") {
+            enemyDamage = Math.max(0, enemyDamage - newPlayer.activeAbility.effectValue)
+          }
+          if (newPlayer.activeAbility?.effectType === "attack_boost" && newPlayer.activeAbility.id === "theVoice") {
+            enemyDamage = Math.max(0, enemyDamage + (STATIC_DATA.ABILITIES.theVoice.effectValue / 100) * enemyDamage)
+          }
+
           newPlayer.health = Math.max(0, newPlayer.health - enemyDamage)
           newCombat.log.push(`<p class="log-enemy">${newCombat.enemy.name} strikes you for ${enemyDamage} damage!</p>`)
 
@@ -502,9 +831,9 @@ export default function ArrakisGamePage() {
             addNotification("You have been defeated!", "error")
             return handleCombatEnd("lose", newPlayer, newCombat.enemy, newCombat, prev.resources, prev.map)
           } else {
-            newCombat.turn = "player" // Back to player's turn after failed flee
+            newCombat.turn = "enemy" // After failed flee, it's enemy's turn
             newCombat.combatRound++
-            newCombat.miniGameActive = true
+            // Removed miniGameActive, turnStartTime
             return { ...prev, combat: newCombat, player: newPlayer }
           }
         }
@@ -533,11 +862,29 @@ export default function ArrakisGamePage() {
           ...prev.player,
           house: houseKey,
           color: houseColor,
-          resources: { ...prev.resources, ...houseData.startingBonus }, // Apply starting bonuses
+          // Apply starting bonuses to resources and player stats
+          resources: {
+            ...prev.resources,
+            ...(houseData.startingBonus.solari && { solari: prev.resources.solari + houseData.startingBonus.solari }),
+            ...(houseData.startingBonus.spice && { spice: prev.resources.spice + houseData.startingBonus.spice }),
+            ...(houseData.startingBonus.water && { water: prev.resources.water + houseData.startingBonus.water }),
+            ...(houseData.startingBonus.plasteel && {
+              plasteel: prev.resources.plasteel + houseData.startingBonus.plasteel,
+            }),
+            ...(houseData.startingBonus.rareMaterials && {
+              rareMaterials: prev.resources.rareMaterials + houseData.startingBonus.rareMaterials,
+            }),
+            ...(houseData.startingBonus.melange && {
+              melange: prev.resources.melange + houseData.startingBonus.melange,
+            }),
+          },
+          attack: prev.player.attack + (houseData.startingBonus.attack || 0),
+          defense: prev.player.defense + (houseData.startingBonus.defense || 0),
+          experience: prev.player.experience + (houseData.startingBonus.xp || 0),
         }
-        // Apply specific stat bonuses if any
-        if (houseData.startingBonus.attack) newPlayer.attack += houseData.startingBonus.attack
-        if (houseData.startingBonus.defense) newPlayer.defense += houseData.startingBonus.defense
+
+        // Send new player announcement to chat
+        handleSendMessage(`${newPlayer.name} has joined House ${houseData.name}!`)
 
         return {
           ...prev,
@@ -546,47 +893,98 @@ export default function ArrakisGamePage() {
           gameInitialized: true, // Game is fully initialized after house selection
         }
       })
-      addNotification(`Welcome to Arrakis, ${gameState.player.name}! The Spice must flow.`, "legendary")
+      addNotification(`Welcome to Arrakis, ${gameStateRef.current.player.name}! The Spice must flow.`, "legendary")
     },
-    [addNotification, gameState.player.name],
-  ) // Added gameState.player.name to dependency array
+    [addNotification, handleSendMessage],
+  )
 
-  // Initialization and Game Loop
-  useEffect(() => {
-    const initGame = async () => {
-      setIsLoading(true)
-      try {
-        // Anonymous Firebase Auth for unique user ID
-        const userCredential = await signInAnonymously(auth)
-        const userId = userCredential.user.uid
-        const playerDocRef = doc(db, "players", userId)
-        const playerDocSnap = await getDoc(playerDocRef)
-
-        if (playerDocSnap.exists()) {
-          // Load existing game state
-          const savedState = playerDocSnap.data() as GameState
-          setGameState(savedState)
-          addNotification(`Welcome back, ${savedState.player.name}!`, "legendary")
-        } else {
-          // New player, set initial ID and open name modal
-          setGameState((prev) => ({
-            ...prev,
-            player: { ...prev.player, id: userId },
-            isNameModalOpen: true, // Ensure name modal is open for new players
-            gameInitialized: false, // Not fully initialized until onboarding is done
-          }))
-        }
-      } catch (error) {
-        console.error("Error initializing game or signing in:", error)
-        addNotification("Failed to load game. Please try again.", "error")
-      } finally {
-        setIsLoading(false)
+  // --- Prestige Logic ---
+  const handlePrestige = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.player.level < 20) {
+        addNotification("You must reach Level 20 to Prestige!", "warning")
+        return prev
       }
-    }
-    initGame()
 
+      const currentSolari = prev.resources.solari
+      // Calculate prestige bonus: 1% bonus for every 10,000 Solari, capped at 50%
+      const solariBonus = Math.min(0.5, Math.floor(currentSolari / 10000) * 0.01)
+      const newPrestigeLevel = prev.player.prestigeLevel + 1
+      const cumulativeBasePrestigeBonus = newPrestigeLevel * 0.05 // Base 5% per prestige level
+      const totalPrestigeMultiplier = 1 + solariBonus + cumulativeBasePrestigeBonus // This is the total multiplier for the *new* game cycle.
+
+      const newPlayerId = prev.player.id // Preserve player ID
+
+      // Reset player stats, resources, inventory, equipment, and map elements
+      const resetPlayer = getInitialPlayerState(newPlayerId, newPrestigeLevel) // This will set base globalGainMultiplier
+      resetPlayer.globalGainMultiplier = totalPrestigeMultiplier // Override with calculated total
+
+      // Apply prestige bonus to new player stats and resources
+      resetPlayer.attack = Math.floor(resetPlayer.attack * totalPrestigeMultiplier)
+      resetPlayer.defense = Math.floor(resetPlayer.defense * totalPrestigeMultiplier)
+      resetPlayer.maxHealth = Math.floor(resetPlayer.maxHealth * totalPrestigeMultiplier)
+      resetPlayer.health = resetPlayer.maxHealth
+      resetPlayer.maxEnergy = Math.floor(resetPlayer.maxEnergy * totalPrestigeMultiplier)
+      resetPlayer.energy = resetPlayer.maxEnergy
+      resetPlayer.spicePerClick = Math.floor(resetPlayer.spicePerClick * totalPrestigeMultiplier)
+      resetPlayer.spiceClickUpgradeCost = Math.floor(resetPlayer.spiceClickUpgradeCost / totalPrestigeMultiplier) // Make upgrades cheaper
+
+      const resetResources = getInitialResourcesState()
+      resetResources.solari = Math.floor(resetResources.solari * totalPrestigeMultiplier)
+      resetResources.spice = Math.floor(resetResources.spice * totalPrestigeMultiplier)
+      resetResources.water = Math.floor(resetResources.water * totalPrestigeMultiplier)
+      resetResources.plasteel = Math.floor(resetResources.plasteel * totalPrestigeMultiplier)
+      resetResources.rareMaterials = Math.floor(resetResources.rareMaterials * totalPrestigeMultiplier)
+      resetResources.melange = Math.floor(resetResources.melange * totalPrestigeMultiplier)
+
+      // Preserve house and territories
+      resetPlayer.house = prev.player.house
+      resetPlayer.territories = prev.player.territories
+      resetPlayer.unlockedAbilities = prev.player.unlockedAbilities // Preserve unlocked abilities
+      resetPlayer.activeAbility = null // Reset active ability on prestige
+      resetPlayer.isDefending = false // Reset defending state
+      const resetAbilityCooldowns: Record<string, number> = {} // Reset cooldowns
+
+      addNotification(
+        `Prestige ${newPrestigeLevel} achieved! All progress reset for a ${((totalPrestigeMultiplier - 1) * 100).toFixed(1)}% overall bonus!`,
+        "legendary",
+      )
+
+      const resetEquipment = { weapon: null, armor: null, accessory: null }
+      const resetInventory = new Array(CONFIG.MAX_INVENTORY).fill(null)
+      const resetMap = {
+        enemies: generateMockEnemies(),
+        resources: generateMockResources(),
+        territories: generateMockTerritories(),
+        items: generateMockItems(),
+      }
+
+      return {
+        ...initialGameState, // Start with a clean slate for most things
+        player: resetPlayer,
+        resources: resetResources,
+        equipment: resetEquipment,
+        inventory: resetInventory,
+        map: resetMap,
+        isPrestigeModalOpen: false,
+        gameInitialized: true, // Ensure game remains initialized
+        abilityCooldowns: resetAbilityCooldowns,
+      }
+    })
+  }, [addNotification])
+
+  // Game Loop
+  useEffect(() => {
     const gameTick = setInterval(() => {
-      if (!gameState.gameInitialized || isLoading || gameState.isCombatModalOpen) return // Pause tick during combat
+      // Access latest state via ref for intervals
+      const currentGameState = gameStateRef.current
+      if (
+        !currentGameState.gameInitialized ||
+        isLoading ||
+        currentGameState.isCombatModalOpen ||
+        currentGameState.isAbilitySelectionModalOpen
+      )
+        return // Pause tick during modals
 
       setGameState((prev) => {
         const now = Date.now()
@@ -598,47 +996,64 @@ export default function ArrakisGamePage() {
           resources: { ...prev.map.resources },
           items: { ...prev.map.items },
         }
+        const newAbilityCooldowns = { ...prev.abilityCooldowns }
 
         // Energy Regen
         if (now - prev.lastEnergyRegen >= CONFIG.ENERGY_REGEN_INTERVAL) {
-          newPlayer.energy = Math.min(newPlayer.maxEnergy, newPlayer.energy + newPlayer.energyProductionRate)
+          let energyRegenRate = newPlayer.energyProductionRate
+          if (newPlayer.activeAbility?.effectType === "energy_regen") {
+            // Example: Sandwalk reduces water consumption, but for energy regen, let's say it boosts it
+            energyRegenRate = Math.floor(energyRegenRate * (1 + newPlayer.activeAbility.effectValue / 100))
+          }
+          newPlayer.energy = Math.min(newPlayer.maxEnergy, newPlayer.energy + energyRegenRate)
           prev.lastEnergyRegen = now // Update last regen time
+        }
+
+        // Health Regen from abilities
+        if (newPlayer.activeAbility?.effectType === "health_regen") {
+          const healthRegenAmount = Math.floor(newPlayer.maxHealth * (newPlayer.activeAbility.effectValue / 100))
+          newPlayer.health = Math.min(newPlayer.maxHealth, newPlayer.health + healthRegenAmount)
         }
 
         // Cooldowns & Respawns (simple version)
         Object.entries(newMap.enemies).forEach(([key, enemy]) => {
           if (enemy.cooldownUntil && now >= enemy.cooldownUntil) {
             const originalEnemyData = STATIC_DATA.ENEMIES[enemy.type as keyof typeof STATIC_DATA.ENEMIES]
-            newMap.enemies[key] = { ...enemy, currentHealth: originalEnemyData.health, cooldownUntil: undefined }
+            newMap.enemies[key] = { ...enemy, currentHealth: originalEnemyData.health, cooldownUntil: null } // Set to null
           }
         })
         Object.entries(newMap.resources).forEach(([key, resourceNode]) => {
           if (resourceNode.cooldownUntil && now >= resourceNode.cooldownUntil) {
-            if (resourceNode.type === "spice")
-              newMap.resources[key] = {
-                ...resourceNode,
-                amount: Math.floor(Math.random() * 50) + 10,
-                cooldownUntil: undefined,
+            if (resourceNode.cooldownUntil && now >= resourceNode.cooldownUntil) {
+              if (resourceNode.type === "spice")
+                newMap.resources[key] = {
+                  ...resourceNode,
+                  amount: Math.floor(Math.random() * 50) + 10,
+                  cooldownUntil: null, // Set to null
+                }
+              else if (resourceNode.type === "water")
+                newMap.resources[key] = {
+                  ...resourceNode,
+                  amount: Math.floor(Math.random() * 30) + 5,
+                  cooldownUntil: null, // Set to null
+                }
+              else {
+                // If resource is fully depleted and not respawning, remove it from map
+                delete newMap.resources[key]
               }
-            else if (resourceNode.type === "water")
-              newMap.resources[key] = {
-                ...resourceNode,
-                amount: Math.floor(Math.random() * 30) + 5,
-                cooldownUntil: undefined,
-              }
-            else delete newMap.resources[key]
+            }
           }
         })
 
         // Item Respawn Logic
-        const newRespawnQueue = { ...itemRespawnQueue }
+        const newRespawnQueue = { ...itemRespawnQueue } // Create a mutable copy
         Object.entries(newRespawnQueue).forEach(([itemId, { item, respawnTime }]) => {
           if (now >= respawnTime) {
             const { x, y } = getRandomMapCoords()
             const newKey = `${x},${y}`
             newMap.items[newKey] = { ...item, id: `item_${newKey}` } // Assign new ID based on new coords
             addNotification(`An item (${item.name}) has respawned at (${x},${y}).`, "info")
-            delete newRespawnQueue[itemId]
+            delete newRespawnQueue[itemId] // Remove from the queue
           }
         })
         setItemRespawnQueue(newRespawnQueue)
@@ -658,6 +1073,13 @@ export default function ArrakisGamePage() {
           })
         }
 
+        // Update ability cooldowns
+        for (const abilityId in newAbilityCooldowns) {
+          if (newAbilityCooldowns[abilityId] <= now) {
+            delete newAbilityCooldowns[abilityId]
+          }
+        }
+
         const newRankScore = newResources.solari + newResources.spice * 5 + newPlayer.territories.length * 1000
         newPlayer.rank = Math.max(1, 100 - Math.floor(newRankScore / 1000))
         newPlayer.rankName =
@@ -673,18 +1095,25 @@ export default function ArrakisGamePage() {
             .map((p) => (p.id === newPlayer.id ? { ...p, rank: newPlayer.rank, rankName: newPlayer.rankName } : p))
             .sort((a, b) => a.rank - b.rank)
             .slice(0, 5),
+          abilityCooldowns: newAbilityCooldowns,
         }
       })
     }, 1000)
 
     // Save game state to Firebase periodically
     const saveGameInterval = setInterval(async () => {
-      if (gameState.player.id && gameState.gameInitialized) {
+      const currentGameState = gameStateRef.current // Access latest state via ref
+      if (currentGameState.player.id && currentGameState.gameInitialized) {
         try {
-          await setDoc(doc(db, "players", gameState.player.id), gameState)
+          await setDoc(doc(db, "players", currentGameState.player.id), currentGameState)
           console.log("Game state saved to Firebase.")
         } catch (error) {
-          console.error("Error saving game state:", error)
+          console.error("Error saving game state to Firebase:", error)
+          if (error instanceof Error) {
+            addNotification(`Failed to save game: ${error.message}.`, "error")
+          } else {
+            addNotification("An unknown error occurred during game saving.", "error")
+          }
         }
       }
     }, CONFIG.SAVE_INTERVAL)
@@ -693,15 +1122,7 @@ export default function ArrakisGamePage() {
       clearInterval(gameTick)
       clearInterval(saveGameInterval)
     }
-  }, [
-    gameState.gameInitialized,
-    isLoading,
-    gameState.isCombatModalOpen,
-    itemRespawnQueue,
-    addNotification,
-    gameState.player.id,
-    gameState,
-  ]) // Added gameState to dependencies for saveGameInterval
+  }, []) // Empty dependency array ensures this runs only once on mount
 
   const attemptPlayerAction = useCallback(
     (targetX: number, targetY: number) => {
@@ -716,8 +1137,9 @@ export default function ArrakisGamePage() {
         const itemOnCell = map.items[key] // New: Check for items
 
         // If combat is active, prevent any other actions
-        if (prev.isCombatModalOpen) {
-          addNotification("Combat is already active!", "warning")
+        if (prev.isCombatModalOpen || prev.isAbilitySelectionModalOpen) {
+          // Added ability modal check
+          addNotification("Cannot perform action during active modal!", "warning")
           return prev
         }
 
@@ -733,7 +1155,13 @@ export default function ArrakisGamePage() {
         }
 
         // Movement cost
-        if (resources.water < 1 && (dx !== 0 || dy !== 0)) {
+        let waterCost = 1
+        if (player.activeAbility?.id === "sandwalk" && player.activeAbility.effectType === "energy_regen") {
+          // Re-purposed for water efficiency
+          waterCost = Math.max(0, waterCost - (waterCost * player.activeAbility.effectValue) / 100)
+        }
+
+        if (resources.water < waterCost && (dx !== 0 || dy !== 0)) {
           addNotification("Not enough water to move!", "warning")
           return prev
         }
@@ -741,7 +1169,7 @@ export default function ArrakisGamePage() {
         const newPlayer = { ...player, position: { x: targetX, y: targetY } }
         const newResources = { ...resources }
         if (dx !== 0 || dy !== 0) {
-          newResources.water -= 1
+          newResources.water -= waterCost
         }
         const newMap = { ...map, enemies: { ...map.enemies }, resources: { ...map.resources }, items: { ...map.items } }
 
@@ -749,34 +1177,69 @@ export default function ArrakisGamePage() {
 
         // Interaction logic
         if (enemyOnCell && !enemyOnCell.cooldownUntil) {
+          // Scale enemy stats based on player level
+          const originalEnemyData = STATIC_DATA.ENEMIES[enemyOnCell.type as keyof typeof STATIC_DATA.ENEMIES]
+          let targetEnemyLevel = player.level // Default to player's level
+
+          if (originalEnemyData.boss) {
+            targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 2)) // Bosses can be player level + 0-2
+          } else if (originalEnemyData.special) {
+            targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 1)) // Special enemies can be player level + 0-1
+          } else {
+            targetEnemyLevel = Math.max(1, player.level - getRandomInt(0, 1)) // Regular enemies are player level or 1 lower
+          }
+
+          const levelDifference = targetEnemyLevel - originalEnemyData.level
+          const scalingMultiplier = 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR
+
+          const scaledEnemy: Enemy = {
+            ...enemyOnCell,
+            level: targetEnemyLevel,
+            health: Math.floor(originalEnemyData.health * scalingMultiplier),
+            currentHealth: Math.floor(originalEnemyData.health * scalingMultiplier),
+            attack: Math.floor(originalEnemyData.attack * scalingMultiplier),
+            defense: Math.floor(originalEnemyData.defense * scalingMultiplier),
+            xp: Math.floor(originalEnemyData.xp * scalingMultiplier),
+            loot: Object.fromEntries(
+              Object.entries(originalEnemyData.loot).map(([res, amount]) => [
+                res,
+                Math.floor(amount * scalingMultiplier),
+              ]),
+            ),
+          }
+
           // Initiate combat
-          addNotification(`Engaging ${enemyOnCell.name}!`, "info")
+          addNotification(`Engaging ${scaledEnemy.name} (Lv.${scaledEnemy.level})!`, "info")
           return {
             ...prev,
-            player: newPlayer, // Player moves onto enemy cell
+            player: { ...newPlayer, isDefending: false }, // Reset defending state
             resources: newResources,
             isCombatModalOpen: true,
             combat: {
               active: true,
-              enemy: { ...enemyOnCell, currentHealth: enemyOnCell.health }, // Reset enemy health for combat
-              turn: "player",
-              log: [`<p class="log-info">You encountered a ${enemyOnCell.name}!</p>`],
+              enemy: scaledEnemy, // Use scaled enemy
+              turn: "player", // Always start with player turn
+              log: [`<p class="log-info">You encountered a ${scaledEnemy.name} (Lv.${scaledEnemy.level})!</p>`],
               playerHealthAtStart: newPlayer.health,
-              enemyHealthAtStart: enemyOnCell.health,
+              enemyHealthAtStart: scaledEnemy.health,
               combatRound: 1,
-              miniGameActive: false, // Will be set to true by CombatModal's useEffect
-              miniGameResult: null,
+              // Removed miniGameActive, miniGameResult, turnStartTime
             },
           }
         } else if (resourceOnCell && !resourceOnCell.cooldownUntil) {
-          const amountHarvested = Math.min(resourceOnCell.amount, 10)
+          let amountHarvested = Math.min(resourceOnCell.amount, 10)
+          // Apply active ability effects to resource gathering
+          if (player.activeAbility?.id === "spiceTrance" && player.activeAbility.effectType === "attack_boost") {
+            // Re-purposed for resource gathering
+            amountHarvested = Math.floor(amountHarvested * (1 + player.activeAbility.effectValue / 100))
+          }
           ;(newResources as any)[resourceOnCell.type] += amountHarvested
           addNotification(`Harvested ${amountHarvested} ${resourceOnCell.type}.`, "success")
           newMap.resources[key] = {
             ...resourceOnCell,
             amount: resourceOnCell.amount - amountHarvested,
             cooldownUntil:
-              resourceOnCell.amount - amountHarvested <= 0 ? Date.now() + CONFIG.RESOURCE_COOLDOWN : undefined,
+              resourceOnCell.amount - amountHarvested <= 0 ? Date.now() + CONFIG.RESOURCE_DEPLETED_COOLDOWN : null, // Set to null if not depleted
           }
           if (newMap.resources[key].amount <= 0) {
             addNotification(`${resourceOnCell.type} node depleted.`, "info")
@@ -816,7 +1279,9 @@ export default function ArrakisGamePage() {
         isLoading ||
         gameState.isCombatModalOpen ||
         gameState.isNameModalOpen ||
-        gameState.isHouseModalOpen
+        gameState.isHouseModalOpen ||
+        gameState.isPrestigeModalOpen ||
+        gameState.isAbilitySelectionModalOpen
       )
         return // Disable controls during modals
       if (document.activeElement && ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
@@ -864,16 +1329,14 @@ export default function ArrakisGamePage() {
     gameState.isCombatModalOpen,
     gameState.isNameModalOpen,
     gameState.isHouseModalOpen,
+    gameState.isPrestigeModalOpen,
+    gameState.isAbilitySelectionModalOpen,
     attemptPlayerAction,
   ])
 
   const handleTabChange = useCallback((tab: string) => {
     setGameState((prev) => ({ ...prev, currentTab: tab }))
   }, [])
-
-  const handleTradeClick = useCallback(() => {
-    addNotification("Trading system coming soon!", "info")
-  }, [addNotification])
 
   const handleMapCellClick = useCallback(
     (x: number, y: number) => {
@@ -985,8 +1448,8 @@ export default function ArrakisGamePage() {
       ...prev,
       resources: { ...prev.resources, spice: prev.resources.spice + prev.player.spicePerClick },
     }))
-    addNotification(`+${gameState.player.spicePerClick} Spice gathered!`, "success")
-  }, [addNotification, gameState.player.spicePerClick])
+    addNotification(`+${gameStateRef.current.player.spicePerClick} Spice gathered!`, "success")
+  }, [addNotification])
 
   const handleUpgradeSpiceClick = useCallback(() => {
     setGameState((prev) => {
@@ -1063,6 +1526,19 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  // Modal handlers (only Prestige and Ability Selection remain as modals)
+  const handleOpenPrestigeModal = useCallback(() => {
+    setGameState((prev) => ({ ...prev, isPrestigeModalOpen: true }))
+  }, [])
+
+  const handleClosePrestigeModal = useCallback(() => {
+    setGameState((prev) => ({ ...prev, isPrestigeModalOpen: false }))
+  }, [])
+
+  const handleCloseAbilitySelectionModal = useCallback(() => {
+    setGameState((prev) => ({ ...prev, isAbilitySelectionModalOpen: false }))
+  }, [])
+
   if (isLoading) return <LoadingScreen isVisible={true} />
 
   const selectedTerritory = gameState.selectedTerritoryCoords
@@ -1070,8 +1546,8 @@ export default function ArrakisGamePage() {
     : null
 
   return (
-    <div className="min-h-screen">
-      <Header player={gameState.player} onTradeClick={handleTradeClick} />
+    <div className="min-h-screen flex flex-col">
+      <Header player={gameState.player} />
       <Navigation currentTab={gameState.currentTab} onTabChange={handleTabChange} />
       <NotificationArea
         notifications={gameState.notifications}
@@ -1080,77 +1556,80 @@ export default function ArrakisGamePage() {
         }
       />
 
-      <main className="flex pt-[140px] h-[calc(100vh-88px)]">
-        <Sidebar
-          player={gameState.player}
-          resources={gameState.resources}
-          // leaderboard={gameState.leaderboard} // Moved
-          // worldEvents={gameState.worldEvents} // Moved
-          // onGenerateSpice={handleGenerateSpice} // Moved
-          // onUpgradeSpiceClick={handleUpgradeSpiceClick} // Moved
-        />
-        <div className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex flex-1 flex-col lg:flex-row pt-[140px] h-[calc(100vh-88px)]">
+        {/* Left Sidebar: Resources & Manual Operations */}
+        <aside className="w-full lg:w-80 bg-gradient-to-b from-stone-800 to-stone-900 border-r-2 border-amber-600 flex flex-col p-4 space-y-4 overflow-y-auto shadow-lg order-2 lg:order-1">
+          <Sidebar player={gameState.player} resources={gameState.resources} />
+          <ActionsPanel
+            player={gameState.player}
+            resources={gameState.resources}
+            onGenerateSpice={handleGenerateSpice}
+            onUpgradeSpiceClick={handleUpgradeSpiceClick}
+            onSellSpice={handleSellSpice}
+            onMinePlasteel={handleMinePlasteel}
+            onCollectWater={handleCollectWater}
+          />
+        </aside>
+
+        <div className="flex-1 flex flex-col overflow-hidden order-1 lg:order-2">
           {gameState.currentTab === "game" && (
-            <div className="flex-1 p-6 overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-orbitron text-amber-400">🏜️ The Great Desert of Arrakis</h2>
-                <div className="text-lg text-stone-300">
-                  Position:{" "}
-                  <span className="text-amber-300 font-bold">
-                    {gameState.player.position.x},{gameState.player.position.y}
-                  </span>
+            <div className="flex-1 p-6 overflow-y-auto flex flex-col xl:flex-row">
+              {/* Central Content: Map, Leaderboard, World Events */}
+              <div className="flex-1 flex flex-col">
+                <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+                  <h2 className="text-3xl font-orbitron text-amber-400 text-center sm:text-left mb-4 sm:mb-0">
+                    🏜️ The Great Desert of Arrakis
+                  </h2>
+                  <div className="text-lg text-stone-300">
+                    Position:{" "}
+                    <span className="text-amber-300 font-bold">
+                      {gameState.player.position.x},{gameState.player.position.y}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="text-sm text-stone-400 mb-4 p-3 bg-stone-800 rounded-lg border border-stone-600 text-center">
-                <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys or Click adjacent cells
-                to move/interact • Click cells to interact/purchase territory.
-              </div>
-
-              {/* Manual Operations (Moved above map) */}
-              <ActionsPanel
-                player={gameState.player}
-                resources={gameState.resources}
-                onGenerateSpice={handleGenerateSpice}
-                onUpgradeSpiceClick={handleUpgradeSpiceClick}
-                onSellSpice={handleSellSpice}
-                onMinePlasteel={handleMinePlasteel}
-                onCollectWater={handleCollectWater}
-              />
-
-              <MapGrid
-                player={gameState.player}
-                mapData={gameState.map}
-                onlinePlayers={gameState.onlinePlayers}
-                worldEvents={gameState.worldEvents}
-                onCellClick={handleMapCellClick}
-              />
-
-              {/* Leaderboard and World Events (Moved below map) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <Leaderboard topPlayers={gameState.leaderboard} />
-                <div className="bg-purple-800 p-4 rounded-lg border border-purple-500">
-                  <h3 className="text-lg font-semibold text-purple-300 mb-3 font-orbitron">🌟 World Events</h3>
-                  <div className="space-y-2 text-sm max-h-32 overflow-y-auto">
-                    {gameState.worldEvents.length === 0 ? (
-                      <p className="text-stone-400 text-center">No active events</p>
-                    ) : (
-                      gameState.worldEvents.map((event, index) => (
-                        <div
-                          key={event.id || index}
-                          className="bg-purple-900/50 p-3 rounded-lg border border-purple-700"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-bold text-purple-200">
-                              {event.icon} {event.name}
-                            </span>
+                <div className="text-sm text-stone-400 mb-4 p-3 bg-stone-800 rounded-lg border border-stone-600 text-center">
+                  <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys or Click adjacent
+                  cells to move/interact • Click cells to interact/purchase territory.
+                </div>
+                <MapGrid
+                  player={gameState.player}
+                  mapData={gameState.map}
+                  onlinePlayers={gameState.onlinePlayers}
+                  worldEvents={gameState.worldEvents}
+                  onCellClick={handleMapCellClick}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  <Leaderboard topPlayers={gameState.leaderboard} />
+                  <div className="bg-purple-800 p-4 rounded-lg border border-purple-500">
+                    <h3 className="text-lg font-semibold text-purple-300 mb-3 font-orbitron">
+                      🌟 World Events Summary
+                    </h3>
+                    <div className="space-y-2 text-sm max-h-32 overflow-y-auto">
+                      {gameState.worldEvents.length === 0 ? (
+                        <p className="text-stone-400 text-center">No active events</p>
+                      ) : (
+                        gameState.worldEvents.map((event, index) => (
+                          <div
+                            key={event.id || index}
+                            className="bg-purple-900/50 p-3 rounded-lg border border-purple-700"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-purple-200">
+                                {event.icon} {event.name}
+                              </span>
+                            </div>
+                            <p className="text-xs text-stone-300">{event.description}</p>
                           </div>
-                          <p className="text-xs text-stone-300">{event.description}</p>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
+              {/* Right Panel: Vital Stats */}
+              <aside className="w-full xl:w-80 bg-gradient-to-b from-stone-800 to-stone-900 border-l-2 border-blue-600 flex flex-col p-4 space-y-4 overflow-y-auto shadow-lg mt-6 xl:mt-0 xl:ml-6 order-3">
+                <PlayerStatsPanel player={gameState.player} />
+              </aside>
             </div>
           )}
           {gameState.currentTab === "character" && (
@@ -1159,6 +1638,9 @@ export default function ArrakisGamePage() {
               equipment={gameState.equipment}
               inventory={gameState.inventory}
               onEquipItem={handleEquipItem}
+              onOpenPrestigeModal={handleOpenPrestigeModal}
+              onActivateAbility={handleActivateAbility}
+              abilityCooldowns={gameState.abilityCooldowns}
             />
           )}
           {gameState.currentTab === "empire" && (
@@ -1167,9 +1649,69 @@ export default function ArrakisGamePage() {
           {gameState.currentTab === "multiplayer" && (
             <div className="flex-1 p-6 overflow-y-auto">
               <h2 className="text-3xl font-orbitron text-amber-400 mb-6">🌍 Multiplayer Hub</h2>
-              <p className="text-center text-stone-400">
-                Chat, detailed rankings, and direct player trading coming soon!
+              <p className="text-center text-stone-400 mb-4">
+                Connect with other players, trade resources, and dominate Arrakis!
               </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* World Chat */}
+                <div className="bg-stone-800 p-6 rounded-lg border border-stone-600 col-span-full">
+                  <h3 className="text-xl font-semibold mb-4 text-amber-300">World Chat</h3>
+                  <WorldChat
+                    messages={gameState.chatMessages}
+                    onSendMessage={handleSendMessage}
+                    playerName={gameState.player.name}
+                    playerColor={gameState.player.color}
+                  />
+                </div>
+
+                {/* Houses Panel */}
+                <HousesPanel onlinePlayers={gameState.onlinePlayers} />
+
+                {/* World Events Panel */}
+                <WorldEventsPanel worldEvents={gameState.worldEvents} />
+
+                {/* Trade Panel */}
+                <TradePanel player={gameState.player} resources={gameState.resources} />
+
+                {/* Territory Gain Chart */}
+                <div className="bg-stone-800 p-6 rounded-lg border border-stone-600 col-span-full">
+                  <TerritoryChart territories={gameState.map.territories} onlinePlayers={gameState.onlinePlayers} />
+                </div>
+              </div>
+            </div>
+          )}
+          {gameState.currentTab === "updates" && (
+            <div className="flex-1 p-6 overflow-y-auto">
+              <h2 className="text-3xl font-orbitron text-amber-400 mb-6">📰 Game Updates & Patch Notes</h2>
+              <div className="bg-stone-800 p-6 rounded-lg border border-stone-600 space-y-6">
+                <div className="border-b border-stone-700 pb-4">
+                  <h3 className="text-xl font-semibold text-amber-300 mb-2">
+                    Patch 1.0.1 - Combat Refinements (5/31/2025)
+                  </h3>
+                  <ul className="list-disc list-inside text-stone-300 text-sm space-y-1">
+                    <li>Fixed an issue where enemy health bars would not update visually during combat.</li>
+                    <li>
+                      Resolved a bug causing enemy health to drop below zero, leading to unintended one-shot kills.
+                    </li>
+                    <li>Notifications now automatically disappear after 3 seconds.</li>
+                  </ul>
+                </div>
+                <div className="border-b border-stone-700 pb-4">
+                  <h3 className="text-xl font-semibold text-amber-300 mb-2">Upcoming: Guild System (Q3 2025)</h3>
+                  <p className="text-stone-300 text-sm">
+                    Prepare for the introduction of the Guild system! Form alliances with other players, share
+                    resources, and conquer territories together. New guild-specific abilities and bonuses will be
+                    available.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-amber-300 mb-2">Future Plans: Deep Desert Expeditions</h3>
+                  <p className="text-stone-300 text-sm">
+                    Venture into uncharted territories with new expedition mechanics. Discover rare resources, face
+                    unique challenges, and uncover ancient Fremen secrets.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1200,12 +1742,30 @@ export default function ArrakisGamePage() {
             )
           }
           addNotification={addNotification}
+          onActivateAbility={handleActivateAbility}
+          abilityCooldowns={gameState.abilityCooldowns}
+          onDefend={handleDefend}
+          enemyLevel={gameState.combat.enemy.level}
         />
       )}
 
       {/* Onboarding Modals */}
       <NameSelectionModal isOpen={gameState.isNameModalOpen} onSubmit={handleNameSubmit} />
       <HouseSelectionModal isOpen={gameState.isHouseModalOpen} onSelect={handleHouseSelect} />
+
+      {/* Remaining Game Info Modals */}
+      <PrestigeModal
+        isOpen={gameState.isPrestigeModalOpen}
+        onClose={handleClosePrestigeModal}
+        onPrestige={handlePrestige}
+        playerSolari={gameState.resources.solari}
+        prestigeLevel={gameState.player.prestigeLevel}
+      />
+      <AbilitySelectionModal
+        isOpen={gameState.isAbilitySelectionModalOpen}
+        onSelect={handleSelectAbility}
+        availableAbilities={availableAbilitiesForSelection}
+      />
     </div>
   )
 }

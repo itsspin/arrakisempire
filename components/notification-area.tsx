@@ -1,6 +1,6 @@
 "use client"
 
-import type { GameState } from "@/types/game" // Assuming Notification type is part of GameState or a separate import
+import type { GameState } from "@/types/game"
 import { useEffect } from "react"
 
 interface NotificationAreaProps {
@@ -11,13 +11,10 @@ interface NotificationAreaProps {
 export function NotificationArea({ notifications, onClose }: NotificationAreaProps) {
   useEffect(() => {
     notifications.forEach((notification) => {
-      if (notification.type !== "error") {
-        // Persistent errors might be desired
-        const timer = setTimeout(() => {
-          onClose(notification.id)
-        }, 5000) // Auto-close after 5 seconds
-        return () => clearTimeout(timer)
-      }
+      const timer = setTimeout(() => {
+        onClose(notification.id)
+      }, 3000) // Auto-close after 3 seconds for all notification types
+      return () => clearTimeout(timer)
     })
   }, [notifications, onClose])
 
