@@ -13,6 +13,19 @@ export const CONFIG = {
   TERRITORY_BASE_COST: 1000,
   TERRITORY_COST_MULTIPLIER: 1.5,
   ENERGY_PRODUCTION_UNLOCK_LEVEL: 10,
+  ENEMY_COOLDOWN: 30000, // 30 seconds
+  RESOURCE_COOLDOWN: 20000, // 20 seconds for partial harvest
+  RESOURCE_DEPLETED_COOLDOWN: 60000, // 1 minute for fully depleted node
+  ITEM_RESPAWN_COOLDOWN: 60000, // 1 minute for items to respawn
+  COMBAT_TURN_DELAY: 1500, // Delay between turns in combat (ms)
+  COMBAT_MINIGAME_DURATION: 2000, // Duration of the mini-game (ms)
+  FLEE_CHANCE: 0.6, // 60% chance to flee successfully
+  SPICE_SELL_COST: 50, // Spice required to sell
+  SPICE_SELL_YIELD: 50, // Solari gained from selling spice
+  MINE_PLASTEEL_ENERGY_COST: 10, // Energy cost to mine plasteel
+  MINE_PLASTEEL_YIELD: 5, // Plasteel gained
+  COLLECT_WATER_ENERGY_COST: 5, // Energy cost to collect water
+  COLLECT_WATER_YIELD: 10, // Water gained
 }
 
 export const PLAYER_COLORS = ["red", "blue", "green", "purple", "orange", "pink", "yellow", "cyan"]

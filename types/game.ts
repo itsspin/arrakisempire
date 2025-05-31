@@ -16,17 +16,19 @@ export interface Player {
   position: { x: number; y: number }
   basePosition: { x: number; y: number }
   house: string | null
-  rank: number // Player's rank
-  rankName?: string // e.g., "Spice Baron", "Desert Lord"
+  rank: number
+  rankName?: string
   power: number
   prestigeLevel: number
-  territories: TerritoryDetails[] // Array of owned territories
+  territories: TerritoryDetails[]
   lifetimeSpice: number
   totalEnemiesDefeated: number
   energyProductionRate: number
   created: number
   lastActive: number
-  investments?: Record<string, Investment> // For empire management
+  investments?: Record<string, Investment>
+  spicePerClick: number // New: Spice generated per click
+  spiceClickUpgradeCost: number // New: Cost to upgrade spicePerClick
 }
 
 export interface Resources {
@@ -48,18 +50,23 @@ export interface Item {
   id?: string
   name: string
   icon: string
-  type: string
+  type: string // e.g., "weapon", "armor", "accessory", "consumable"
   attack?: number
   defense?: number
-  rarity: string
+  rarity: string // e.g., "common", "uncommon", "rare", "epic", "legendary"
   description: string
   dropChance?: number
-  special?: string
+  special?: string // e.g., "desert_survival", "spice_detection"
 }
 
-export interface Enemy {
+export interface MapElement {
   id: string
-  type: string
+  position: { x: number; y: number }
+  cooldownUntil?: number // Timestamp until it's active again
+}
+
+export interface Enemy extends MapElement {
+  type: string // Enemy type key from STATIC_DATA
   name: string
   icon: string
   health: number
@@ -69,38 +76,45 @@ export interface Enemy {
   xp: number
   loot: Record<string, number>
   level: number
-  spawnChance: number
+  spawnChance?: number // Optional, for initial generation
   description: string
-  position: { x: number; y: number }
   boss?: boolean
   special?: boolean
   legendary?: boolean
 }
 
-export interface Combat {
-  active: boolean
-  enemy: Enemy | null
-  turn: "player" | "enemy"
-  log: string[]
+export interface ResourceNode extends MapElement {
+  type: string // e.g., "spice", "water", "plasteel"
+  amount: number
+  icon?: string
 }
 
-export interface TerritoryDetails {
-  id: string
-  x: number
-  y: number
+export interface Combat {
+  active: boolean
+  enemy: Enemy | null // The specific enemy instance in combat
+  turn: "player" | "enemy"
+  log: string[]
+  playerHealthAtStart: number // Player's health when combat started
+  enemyHealthAtStart: number // Enemy's health when combat started
+  combatRound: number // Current round number
+  miniGameActive: boolean // Is the mini-game currently active?
+  miniGameResult: "success" | "fail" | null // Result of the last mini-game
+}
+
+export interface TerritoryDetails extends MapElement {
   ownerId: string | null
   ownerName?: string
   ownerColor?: string
   purchaseCost: number
-  perks: string[] // e.g., "+10% Spice Production", "+5 Solari/min"
-  resourceYield?: Partial<Resources> // Passive resource gain
-  name?: string // e.g., "Spice Field Alpha"
+  perks: string[]
+  resourceYield?: Partial<Resources>
+  name?: string
 }
 
 export interface Investment {
   level: number
   costToUpgrade: number
-  productionRate: number // e.g., Spice per minute
+  productionRate: number
   name: string
   description: string
 }
@@ -115,30 +129,44 @@ export interface RankedPlayer {
   color?: string
 }
 
+export interface WorldEvent extends MapElement {
+  name: string
+  description: string
+  icon: string
+  rewards?: Partial<Resources & { xp?: number }>
+  effect?: string // e.g., "energy_drain", "combat_boost"
+  duration?: number // Milliseconds
+  endTime?: number // Timestamp
+}
+
 export interface GameState {
   player: Player
   resources: Resources
   equipment: Equipment
   inventory: (Item | null)[]
-  buildings: Record<string, any> // Simplified for now
+  buildings: Record<string, any>
   combat: Combat
   currentTab: string
   gameInitialized: boolean
   lastSaveTime: number
   lastEnergyRegen: number
-  onlinePlayers: Record<string, Partial<Player>> // Other players on map
-  worldEvents: any[] // Define more strictly if needed
-  tradeOffers: any[] // Define more strictly if needed
+  onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>>
+  worldEvents: WorldEvent[]
+  tradeOffers: any[]
   map: {
     enemies: Record<string, Enemy> // key: "x,y"
-    resources: Record<string, any> // key: "x,y", define resource node type
+    resources: Record<string, ResourceNode> // key: "x,y"
     territories: Record<string, TerritoryDetails> // key: "x,y"
+    items: Record<string, Item> // New: key: "x,y" for items on the map
   }
-  leaderboard: RankedPlayer[] // Top 5 players
+  leaderboard: RankedPlayer[]
   isNameModalOpen: boolean
   isHouseModalOpen: boolean
   isCombatModalOpen: boolean
   isTradingModalOpen: boolean
   isTerritoryModalOpen: boolean
   selectedTerritoryCoords: { x: number; y: number } | null
+  notifications: Array<{ id: string; message: string; type: "success" | "error" | "warning" | "info" | "legendary" }>
 }
+
+export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"

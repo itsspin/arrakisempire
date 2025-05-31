@@ -5,21 +5,21 @@ export const STATIC_DATA = {
       color: "house-atreides",
       bonus: "leadership",
       description: "+25% XP gain, +15% unit effectiveness, +10% territory income",
-      startingBonus: { solari: 1000, xp: 300 },
+      startingBonus: { solari: 1000, xp: 300, water: 100 }, // Added water for balance
     },
     harkonnen: {
       name: "House Harkonnen",
       color: "house-harkonnen",
       bonus: "brutality",
       description: "+30% attack damage, +20% resource extraction, +15% enemy defeat rewards",
-      startingBonus: { plasteel: 200, attack: 8 },
+      startingBonus: { plasteel: 200, attack: 8, solari: 500 }, // Added solari
     },
     fremen: {
       name: "Fremen",
       color: "house-fremen",
       bonus: "desert",
       description: "-60% water consumption, +40% spice finding, immune to sandworms, +20% territory defense",
-      startingBonus: { water: 300, spice: 100 },
+      startingBonus: { water: 300, spice: 100, defense: 5 }, // Added defense
     },
   },
   ENEMIES: {

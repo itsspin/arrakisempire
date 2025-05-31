@@ -156,6 +156,33 @@ body {
   animation: world-event-pulse 2s infinite;
 }
 
+.map-cell-desert {
+  background: linear-gradient(135deg, #c2b280, #a1887f) !important; /* Sandy desert colors */
+  color: #5d4037 !important; /* Darker color for default desert icons if any */
+}
+
+.map-cell-movable {
+  outline: 2px dashed #f59e0b; /* Amber dashed outline */
+  outline-offset: -2px;
+  box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.map-cell-enemy,
+.map-cell-boss,
+.map-cell-special-enemy {
+  /* Ensure these have distinct backgrounds already, if not, enhance them */
+  /* Example: Add a subtle glow or border */
+  box-shadow: 0 0 8px currentColor;
+}
+
+.map-cell-resource-spice,
+.map-cell-resource-water,
+.map-cell-resource-plasteel,
+.map-cell-world-event {
+  /* Ensure these have distinct backgrounds already, if not, enhance them */
+  filter: brightness(1.1);
+}
+
 @keyframes pulse-player {
   0%,
   100% {
@@ -217,9 +244,8 @@ body {
 }
 
 .notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
+  position: relative; /* Change from fixed to relative for stacking */
+  margin-bottom: 10px; /* Space between stacked notifications */
   z-index: 10000;
   padding: 12px 18px;
   border-radius: 8px;
@@ -259,6 +285,20 @@ body {
 .notification.legendary {
   background: linear-gradient(45deg, #f59e0b, #ef4444, #8b5cf6);
   animation: shimmer 2s infinite;
+}
+
+.notification-area {
+  position: fixed;
+  top: 20px;
+  right: 5px; /* Adjust right position slightly */
+  z-index: 10001;
+  display: flex; /* Make it a flex container */
+  flex-direction: column-reverse; /* Stack from bottom up */
+  align-items: flex-end; /* Align notifications to the right */
+  padding-right: 15px; /* Add some padding to the right */
+  max-height: calc(100vh - 40px); /* Limit height */
+  overflow-y: auto; /* Allow scrolling if too many notifications */
+  width: auto; /* Allow width to adjust */
 }
 
 .defeat-popup {
@@ -461,4 +501,109 @@ body {
 .inventory-slot:hover {
   border-color: #f59e0b;
   transform: scale(1.05);
+}
+
+.action-button {
+  @apply px-4 py-2 rounded font-semibold transition-colors duration-150;
+  @apply bg-amber-600 hover:bg-amber-700 text-white;
+  @apply disabled:bg-stone-500 disabled:cursor-not-allowed;
+}
+
+.combat-modal-content {
+  background: linear-gradient(135deg, #1c1917, #292524);
+  border: 2px solid #ef4444; /* Red border for combat */
+  border-radius: 12px;
+  padding: 25px;
+  max-width: 700px; /* Wider for combat */
+  width: 90%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.combat-log {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #44403c;
+  border-radius: 6px;
+  height: 150px;
+  overflow-y: auto;
+  padding: 10px;
+  font-size: 0.9rem;
+  color: #e5e7eb;
+  line-height: 1.4;
+}
+
+.combat-log p {
+  margin-bottom: 5px;
+}
+
+.combat-log .log-player {
+  color: #f59e0b;
+}
+.combat-log .log-enemy {
+  color: #ef4444;
+}
+.combat-log .log-info {
+  color: #9ca3af;
+}
+.combat-log .log-crit {
+  color: #ffeb3b;
+  font-weight: bold;
+}
+.combat-log .log-dodge {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.health-bar-container {
+  background-color: #3f3f46;
+  border-radius: 4px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  background-color: #ef4444;
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+.mini-game-container {
+  width: 100%;
+  height: 50px;
+  background-color: #3f3f46;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  border: 2px solid #f59e0b;
+}
+
+.mini-game-bar {
+  height: 100%;
+  width: 10%; /* Example width, can be dynamic */
+  background-color: #f59e0b;
+  position: absolute;
+  left: 0;
+  animation: moveBar linear forwards;
+}
+
+.mini-game-target {
+  position: absolute;
+  height: 100%;
+  background-color: rgba(76, 175, 80, 0.7); /* Green target zone */
+  border-left: 2px dashed #fff;
+  border-right: 2px dashed #fff;
+}
+
+@keyframes moveBar {
+  0% {
+    left: 0%;
+  }
+  100% {
+    left: 90%; /* Moves from 0% to 90% (100% - bar width) */
+  }
 }

@@ -1,16 +1,15 @@
 "use client"
 
-import type { Player, Resources, RankedPlayer } from "@/types/game"
-import { Leaderboard } from "./leaderboard"
+import type { Player, Resources } from "@/types/game"
+// Removed Leaderboard and ActionsPanel imports as they are moved
 
 interface SidebarProps {
   player: Player
   resources: Resources
-  worldEvents: any[]
-  leaderboard: RankedPlayer[]
+  // Removed worldEvents, leaderboard, onGenerateSpice, onUpgradeSpiceClick props
 }
 
-export function Sidebar({ player, resources, worldEvents, leaderboard }: SidebarProps) {
+export function Sidebar({ player, resources }: SidebarProps) {
   return (
     <aside className="w-80 bg-gradient-to-b from-stone-800 to-stone-900 border-r-2 border-amber-600 flex flex-col p-4 space-y-4 overflow-y-auto shadow-lg">
       {/* Resources */}
@@ -107,35 +106,8 @@ export function Sidebar({ player, resources, worldEvents, leaderboard }: Sidebar
         </div>
       </div>
 
-      {/* Leaderboard */}
-      <Leaderboard topPlayers={leaderboard} />
-
-      {/* World Events */}
-      <div className="bg-purple-800 p-4 rounded-lg border border-purple-500">
-        <h3 className="text-lg font-semibold text-purple-300 mb-3 font-orbitron">🌟 World Events</h3>
-        <div className="space-y-2 text-sm max-h-32 overflow-y-auto">
-          {worldEvents.length === 0 ? (
-            <p className="text-stone-400 text-center">No active events</p>
-          ) : (
-            worldEvents.map(
-              (
-                event,
-                index, // Assuming event has name, icon, description
-              ) => (
-                <div key={event.id || index} className="bg-purple-900/50 p-3 rounded-lg border border-purple-700">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-purple-200">
-                      {event.icon} {event.name}
-                    </span>
-                    {/* Add time left if available */}
-                  </div>
-                  <p className="text-xs text-stone-300">{event.description}</p>
-                </div>
-              ),
-            )
-          )}
-        </div>
-      </div>
+      {/* Leaderboard and World Events are now moved to app/page.tsx below the map */}
+      {/* ActionsPanel is now moved to app/page.tsx above the map */}
     </aside>
   )
 }

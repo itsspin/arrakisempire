@@ -20,10 +20,11 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
     for (let dx = -radius; dx <= radius; dx++) {
       const x = playerX + dx
       const y = playerY + dy
+      const isAdjacent = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0)
       const key = `${x},${y}`
 
-      let cellClass = "map-cell"
-      let cellContent = "🏜️" // Default desert
+      let cellClass = "map-cell map-cell-desert" // Default to desert
+      let cellContent = "" // Default desert cells will be styled by map-cell-desert
       let cellTitle = `Desert (${x},${y})`
 
       // Player
@@ -59,9 +60,17 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         }
       }
 
+      // Items (New)
+      const itemOnCell = mapData.items[key]
+      if (itemOnCell && cellContent === "") {
+        cellClass += " map-cell-item" // Add a specific class for items if needed
+        cellContent = itemOnCell.icon
+        cellTitle = `${itemOnCell.name} (${itemOnCell.rarity})`
+      }
+
       // Enemies
       const enemy = mapData.enemies[key]
-      if (enemy && cellContent === "🏜️") {
+      if (enemy && cellContent === "") {
         // Prioritize player/other players over enemies for icon
         cellClass += enemy.boss ? " map-cell-boss" : enemy.special ? " map-cell-special-enemy" : " map-cell-enemy"
         cellContent = enemy.icon
@@ -70,7 +79,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
 
       // Resources
       const resource = mapData.resources[key]
-      if (resource && cellContent === "🏜️") {
+      if (resource && cellContent === "") {
         cellClass += ` map-cell-resource-${resource.type}`
         const icons = { spice: "✨", water: "💧", plasteel: "🔧", rareMaterials: "💎" }
         cellContent = icons[resource.type] || "📦"
@@ -79,10 +88,14 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
 
       // World Events Markers (can be an overlay on the cell)
       const eventOnCell = worldEvents.find((e) => e.position?.x === x && e.position?.y === y)
-      if (eventOnCell && cellContent === "🏜️") {
+      if (eventOnCell && cellContent === "") {
         cellClass += " map-cell-world-event"
         cellContent = eventOnCell.icon
         cellTitle = `${eventOnCell.name}: ${eventOnCell.description}`
+      }
+
+      if (isAdjacent) {
+        cellClass += " map-cell-movable"
       }
 
       cells.push(
