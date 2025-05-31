@@ -64,8 +64,8 @@ const getRandomInt = (min: number, max: number) => {
 
 // Helper to get a random map coordinate within a reasonable range
 const getRandomMapCoords = () => {
-  const x = getRandomInt(0, CONFIG.MAP_SIZE - 1)
-  const y = getRandomInt(0, CONFIG.MAP_SIZE - 1)
+  const x = getRandomInt(CONFIG.MAP_SIZE / 2 - 10, CONFIG.MAP_SIZE / 2 + 10)
+  const y = getRandomInt(CONFIG.MAP_SIZE / 2 - 10, CONFIG.MAP_SIZE / 2 + 10)
   return { x, y }
 }
 
@@ -86,6 +86,7 @@ const generateMockTerritories = (): Record<string, TerritoryDetails> => {
   const territories: Record<string, TerritoryDetails> = {}
   for (let i = 0; i < 10; i++) {
     const { x, y } = getRandomMapCoords()
+    if (x === 100 && y === 100) continue // Avoid player's starting cell
     const key = `${x},${y}`
     if (territories[key]) continue
     territories[key] = {
@@ -108,6 +109,7 @@ const generateMockEnemies = (): Record<string, Enemy> => {
   const enemyTypes = Object.keys(STATIC_DATA.ENEMIES)
   for (let i = 0; i < 5; i++) {
     const { x, y } = getRandomMapCoords()
+    if (x === 100 && y === 100) continue
     const key = `${x},${y}`
     if (enemies[key]) continue
     const enemyTypeKey = enemyTypes[getRandomInt(0, enemyTypes.length - 1)] as keyof typeof STATIC_DATA.ENEMIES
@@ -140,6 +142,7 @@ const generateMockResources = (): Record<string, ResourceNode> => {
   const resourceTypes = ["spice", "water", "plasteel"]
   for (let i = 0; i < 8; i++) {
     const { x, y } = getRandomMapCoords()
+    if (x === 100 && y === 100) continue
     const key = `${x},${y}`
     if (resources[key]) continue
     const type = resourceTypes[getRandomInt(0, resourceTypes.length - 1)]
@@ -159,6 +162,7 @@ const generateMockItems = (): Record<string, Item> => {
   const itemKeys = Object.keys(STATIC_DATA.ITEMS) as Array<keyof typeof STATIC_DATA.ITEMS>
   for (let i = 0; i < 5; i++) {
     const { x, y } = getRandomMapCoords()
+    if (x === 100 && y === 100) continue
     const key = `${x},${y}`
     if (items[key]) continue
     const itemTypeKey = itemKeys[getRandomInt(0, itemKeys.length - 1)]
@@ -195,8 +199,8 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
   defense: 10,
   critChance: 8,
   dodgeChance: 15,
-  position: getRandomMapCoords(),
-  basePosition: getRandomMapCoords(),
+  position: { x: 100, y: 100 },
+  basePosition: { x: 100, y: 100 },
   house: null,
   rank: 100,
   rankName: "Sand Nomad",
