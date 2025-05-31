@@ -1,3 +1,4 @@
+// itsspin/arrakisempire/arrakisempire-405bbbae52a489f53859e49c3c65cbb5f5afdafc/types/game.ts
 export interface Player {
   id: string | null
   name: string
@@ -13,26 +14,28 @@ export interface Player {
   defense: number
   critChance: number
   dodgeChance: number
-  position: { x: number; y: number } // Corrected to number
+  position: { x: number; y: number } 
   basePosition: { x: number; y: number }
   house: string | null
   rank: number
   rankName?: string
   power: number
   prestigeLevel: number
-  globalGainMultiplier: number // New: Multiplier for all gains (XP, resources, etc.) from prestige
-  territories: TerritoryDetails[]
+  globalGainMultiplier: number 
+  territories: TerritoryDetails[] // Already here, good for AI too
   lifetimeSpice: number
   totalEnemiesDefeated: number
   energyProductionRate: number
   created: number
   lastActive: number
   investments?: Record<string, Investment>
-  spicePerClick: number // New: Spice generated per click
-  spiceClickUpgradeCost: number // New: Cost to upgrade spicePerClick
-  unlockedAbilities: Ability[] // New: Abilities the player has unlocked
-  activeAbility: Ability | null // New: The currently active ability
-  isDefending: boolean // New: True if player chose to defend this turn
+  spicePerClick: number 
+  spiceClickUpgradeCost: number 
+  unlockedAbilities: Ability[] 
+  activeAbility: Ability | null 
+  isDefending: boolean 
+  // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
+  // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
 }
 
 export interface Resources {
@@ -54,23 +57,23 @@ export interface Item {
   id?: string
   name: string
   icon: string
-  type: string // e.g., "weapon", "armor", "accessory", "consumable"
+  type: string 
   attack?: number
   defense?: number
-  rarity: string // e.g., "common", "uncommon", "rare", "epic", "legendary"
+  rarity: string 
   description: string
   dropChance?: number
-  special?: string | null // Ensure this can be null
+  special?: string | null 
 }
 
 export interface MapElement {
   id: string
   position: { x: number; y: number }
-  cooldownUntil?: number | null // Ensure this can be null
+  cooldownUntil?: number | null 
 }
 
 export interface Enemy extends MapElement {
-  type: string // Enemy type key from STATIC_DATA
+  type: string 
   name: string
   icon: string
   health: number
@@ -80,28 +83,32 @@ export interface Enemy extends MapElement {
   xp: number
   loot: Record<string, number>
   level: number
-  spawnChance?: number // Optional, for initial generation
+  spawnChance?: number 
   description: string
   boss?: boolean
   special?: boolean
   legendary?: boolean
+  // NEW: For specific enemy logic like Sandworm attacks
+  specialType?: 'sandworm'; 
+  // NEW: For enemy movement
+  isMoving?: boolean; // Flag if enemy is currently trying to move
+  lastMoveAttempt?: number; // Timestamp of last move attempt
 }
 
 export interface ResourceNode extends MapElement {
-  type: string // e.g., "spice", "water", "plasteel"
+  type: string 
   amount: number
   icon?: string
 }
 
 export interface Combat {
   active: boolean
-  enemy: Enemy | null // The specific enemy instance in combat
+  enemy: Enemy | null 
   turn: "player" | "enemy"
   log: string[]
-  playerHealthAtStart: number // Player's health when combat started
-  enemyHealthAtStart: number // Enemy's health when combat started
-  combatRound: number // Current round number
-  // Removed miniGameActive, miniGameResult, turnStartTime
+  playerHealthAtStart: number 
+  enemyHealthAtStart: number 
+  combatRound: number 
 }
 
 export interface TerritoryDetails extends MapElement {
@@ -112,13 +119,16 @@ export interface TerritoryDetails extends MapElement {
   perks: string[]
   resourceYield?: Partial<Resources>
   name?: string
+  // NEW: For Sandworm destruction
+  isDestroyed?: boolean;
+  destroyedUntil?: number;
 }
 
 export interface Investment {
   level: number
   costToUpgrade: number
   productionRate: number
-  productionResource: keyof Resources // New: Specifies which resource this investment produces
+  productionResource: keyof Resources 
   name: string
   description: string
 }
@@ -133,14 +143,21 @@ export interface RankedPlayer {
   color?: string
 }
 
-export interface WorldEvent extends MapElement {
+export interface WorldEvent extends MapElement { // MapElement gives it an ID and position if needed
   name: string
   description: string
   icon: string
   rewards?: Partial<Resources & { xp?: number }>
-  effect?: string // e.g., "energy_drain", "combat_boost"
-  duration?: number // Milliseconds
-  endTime?: number // Timestamp
+  effect?: string 
+  effectValue?: number // Added to quantify effects
+  duration?: number 
+  endTime?: number 
+  type?: 'economy' | 'hazard' | 'diplomacy' | 'political'; // For categorization
+  // NEW: For event chaining (e.g. Wormsign -> ShaiHuludAttack)
+  triggersNext?: string; // Key of the next event to trigger
+  isChainedEvent?: boolean; // If this event was triggered by another
+  // NEW: For Sandworm attack target
+  targetTerritoryKey?: string;
 }
 
 export interface ChatMessage {
@@ -151,21 +168,23 @@ export interface ChatMessage {
     seconds: number
     nanoseconds: number
   }
-  message: string // Added message property
+  message: string 
 }
 
-// New: Ability Interface
 export interface Ability {
   id: string
   name: string
   description: string
   icon: string
   levelRequired: number
-  cooldown: number // in milliseconds
-  duration: number // in milliseconds, for temporary buffs
+  cooldown: number 
+  duration: number 
   effectType: "attack_boost" | "defense_boost" | "crit_boost" | "dodge_boost" | "health_regen" | "energy_regen" | "stun"
-  effectValue: number // Percentage or flat value
+  effectValue: number 
 }
+
+// Modified onlinePlayers to include full Player type and their own Resources
+export type AIPlayer = Player & { resources: Resources };
 
 export interface GameState {
   player: Player
@@ -178,14 +197,15 @@ export interface GameState {
   gameInitialized: boolean
   lastSaveTime: number
   lastEnergyRegen: number
-  onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>>
+  // onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>> // Old
+  onlinePlayers: Record<string, AIPlayer> // NEW: AIs have their own full Player state and Resources
   worldEvents: WorldEvent[]
   tradeOffers: any[]
   map: {
-    enemies: Record<string, Enemy> // key: "x,y"
-    resources: Record<string, ResourceNode> // key: "x,y"
-    territories: Record<string, TerritoryDetails> // key: "x,y"
-    items: Record<string, Item> // New: key: "x,y" for items on the map
+    enemies: Record<string, Enemy> 
+    resources: Record<string, ResourceNode> 
+    territories: Record<string, TerritoryDetails> 
+    items: Record<string, Item> 
   }
   leaderboard: RankedPlayer[]
   isNameModalOpen: boolean
@@ -193,13 +213,15 @@ export interface GameState {
   isCombatModalOpen: boolean
   isTradingModalOpen: boolean
   isTerritoryModalOpen: boolean
-  // Removed isHousesModalOpen, isWorldEventsModalOpen
   isPrestigeModalOpen: boolean
   isAbilitySelectionModalOpen: boolean
   selectedTerritoryCoords: { x: number; y: number } | null
   notifications: Array<{ id: string; message: string; type: "success" | "error" | "warning" | "info" | "legendary" }>
-  chatMessages: ChatMessage[] // New: Array to store chat messages
-  abilityCooldowns: Record<string, number> // New: Tracks cooldowns for abilities
+  chatMessages: ChatMessage[] 
+  abilityCooldowns: Record<string, number> 
+  // NEW: Track last time AI and World Events were processed
+  lastAIProcessingTime?: number;
+  lastWorldEventProcessingTime?: number;
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"
