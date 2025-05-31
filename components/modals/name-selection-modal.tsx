@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useCallback } from "react" // Import useCallback
+import { Button } from "@/components/ui/button"
 
 interface NameSelectionModalProps {
   isOpen: boolean
@@ -12,16 +12,27 @@ interface NameSelectionModalProps {
 export function NameSelectionModal({ isOpen, onSubmit }: NameSelectionModalProps) {
   const [playerName, setPlayerName] = useState("")
 
-  if (!isOpen) return null
+  // Use useCallback to ensure a stable function reference for handleSubmit
+  const handleSubmit = useCallback(
+    (e?: React.FormEvent | React.MouseEvent) => {
+      e?.preventDefault() // Conditionally prevent default behavior if an event is provided
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (playerName.trim().length > 2) {
-      onSubmit(playerName.trim())
-    } else {
-      alert("Please enter a name with at least 3 characters.")
-    }
-  }
+      if (playerName.trim().length > 2) {
+        // Defensive check for onSubmit being a function
+        if (typeof onSubmit === "function") {
+          onSubmit(playerName.trim())
+        } else {
+          console.error("NameSelectionModal: onSubmit prop is not a function. Received:", onSubmit)
+          alert("An internal error occurred. Please try again.")
+        }
+      } else {
+        alert("Please enter a name with at least 3 characters.")
+      }
+    },
+    [playerName, onSubmit],
+  ) // Dependencies for useCallback
+
+  if (!isOpen) return null
 
   return (
     <div className="modal-overlay">
@@ -46,13 +57,14 @@ export function NameSelectionModal({ isOpen, onSubmit }: NameSelectionModalProps
               minLength={3}
             />
           </div>
-          <button
+          <Button
             type="submit"
+            onClick={handleSubmit} // Explicitly assign the handleSubmit function to onClick
             className="w-full py-3 bg-amber-600 hover:bg-amber-700 rounded font-bold text-lg disabled:bg-stone-500 disabled:cursor-not-allowed"
             disabled={playerName.trim().length < 3}
           >
             Begin Your Journey
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -30,14 +30,16 @@ export function ActionsPanel({
   return (
     <div className="bg-stone-700 p-4 rounded-lg border border-amber-500 mb-6">
       <h3 className="text-lg font-semibold text-amber-400 mb-3 font-orbitron">⛏️ Manual Operations</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <button onClick={onGenerateSpice} className="action-button w-full text-sm">
-          Gather Spice ({player.spicePerClick} ✨)
+      <div className="flex flex-wrap justify-center gap-3">
+        {" "}
+        {/* Changed to flex for horizontal layout */}
+        <button onClick={onGenerateSpice} className="action-button text-sm px-3 py-2 min-w-[120px]">
+          Gather Spice ({player.spicePerClick.toFixed(1)} ✨)
         </button>
         <button
           onClick={onUpgradeSpiceClick}
           disabled={!canUpgradeSpiceClick}
-          className="action-button w-full text-sm"
+          className="action-button text-sm px-3 py-2 min-w-[120px]"
           title={
             canUpgradeSpiceClick
               ? `Cost: ${player.spiceClickUpgradeCost.toLocaleString()} Solari`
@@ -49,7 +51,7 @@ export function ActionsPanel({
         <button
           onClick={onSellSpice}
           disabled={!canSellSpice}
-          className="action-button w-full bg-yellow-600 hover:bg-yellow-700 text-sm"
+          className="action-button bg-yellow-600 hover:bg-yellow-700 text-sm px-3 py-2 min-w-[120px]"
           title={
             canSellSpice
               ? `Sell ${CONFIG.SPICE_SELL_COST} Spice for ${CONFIG.SPICE_SELL_YIELD} Solari`
@@ -61,7 +63,7 @@ export function ActionsPanel({
         <button
           onClick={onMinePlasteel}
           disabled={!canMinePlasteel}
-          className="action-button w-full bg-gray-600 hover:bg-gray-700 text-sm"
+          className="action-button bg-gray-600 hover:bg-gray-700 text-sm px-3 py-2 min-w-[120px]"
           title={
             canMinePlasteel
               ? `Cost: ${CONFIG.MINE_PLASTEEL_ENERGY_COST} Energy`
@@ -73,7 +75,7 @@ export function ActionsPanel({
         <button
           onClick={onCollectWater}
           disabled={!canCollectWater}
-          className="action-button w-full bg-blue-600 hover:bg-blue-700 text-sm"
+          className="action-button bg-blue-600 hover:bg-blue-700 text-sm px-3 py-2 min-w-[120px]"
           title={
             canCollectWater
               ? `Cost: ${CONFIG.COLLECT_WATER_ENERGY_COST} Energy`

@@ -10,7 +10,7 @@ interface LeaderboardProps {
 export function Leaderboard({ topPlayers }: LeaderboardProps) {
   return (
     <div className="bg-stone-700 p-4 rounded-lg border border-yellow-500">
-      <h3 className="text-lg font-semibold text-yellow-400 mb-3 font-orbitron">🏆 Top Houses</h3>
+      <h3 className="text-lg font-semibold text-yellow-400 mb-3 font-orbitron">🏆 Top Players</h3> {/* Changed title */}
       <div className="space-y-2 text-sm">
         {topPlayers.length === 0 ? (
           <p className="text-stone-400 text-center">No rankings yet.</p>
@@ -30,7 +30,7 @@ export function Leaderboard({ topPlayers }: LeaderboardProps) {
                 )}
               </div>
               <span className={`text-xs prestige-glow player-color-${player.color || "gray"}`}>
-                P{player.prestigeLevel || 0}
+                P{player.prestigeLevel || 0} (Power: {player.power?.toLocaleString() || 0}) {/* Display power */}
               </span>
             </div>
           ))

@@ -1,12 +1,13 @@
 "use client"
 
 import type { Player, Resources, Investment } from "@/types/game"
-import { useState } from "react"
 
 interface EmpireTabProps {
   player: Player
   resources: Resources
   onInvest: (ventureId: string) => void // Function to handle investment
+  onManualGather: (ventureId: string) => void // New: Function for manual gathering
+  onHireManager: (ventureId: string) => void // New: Function to hire manager
 }
 
 // Export initialVentures so it can be used in app/page.tsx for consistent state initialization
@@ -15,45 +16,95 @@ export const initialVentures: Record<string, Investment> = {
     name: "Spice Harvester Fleet",
     description: "Deploy automated harvesters to extract Spice. Risky but potentially high yield.",
     level: 0,
-    costToUpgrade: 100, // Solari - Cheaper initial cost
-    productionRate: 1, // 1 Spice per second at level 1
-    productionResource: "spice", // New: specify resource
+    costToUpgrade: 0, // Will be calculated from baseCost
+    productionRate: 0, // Will be calculated from baseProduction
+    productionResource: "spice",
+    baseCost: 100, // Solari
+    costMultiplier: 1.5,
+    baseProduction: 1, // Spice per second
+    productionMultiplier: 1.1,
+    manualClickYield: 5, // Spice per click
+    managerCost: 500, // Solari
+    unlocked: false,
+    hasManager: false,
+    icon: "🚀",
   },
-  processing_plant: {
-    name: "Spice Processing Plant",
-    description: "Refine raw Spice into Melange, increasing its value. Requires Plasteel for upgrades.",
+  water_condenser_network: {
+    name: "Water Condenser Network",
+    description: "Collect atmospheric water vapor, vital for survival and trade.",
     level: 0,
-    costToUpgrade: 200, // Solari + Plasteel - Cheaper initial cost
-    productionRate: 0.05, // 0.05 Melange per second (1 every 20 seconds) at level 1
-    productionResource: "melange", // New: specify resource
+    costToUpgrade: 0,
+    productionRate: 0,
+    productionResource: "water",
+    baseCost: 150, // Solari
+    costMultiplier: 1.6,
+    baseProduction: 2, // Water per second
+    productionMultiplier: 1.12,
+    manualClickYield: 8, // Water per click
+    managerCost: 750,
+    unlocked: false,
+    hasManager: false,
+    icon: "💧",
   },
-  trade_routes: {
-    name: "Interstellar Trade Routes",
-    description: "Establish lucrative trade routes for consistent Solari income from Spice sales.",
+  solari_exchange_hub: {
+    name: "Solari Exchange Hub",
+    description: "Facilitate trade and currency exchange to generate passive Solari income.",
     level: 0,
-    costToUpgrade: 400, // Solari - Cheaper initial cost
-    productionRate: 5, // 5 Solari per second at level 1
-    productionResource: "solari", // New: specify resource
+    costToUpgrade: 0,
+    productionRate: 0,
+    productionResource: "solari",
+    baseCost: 200, // Solari
+    costMultiplier: 1.7,
+    baseProduction: 10, // Solari per second
+    productionMultiplier: 1.15,
+    manualClickYield: 25, // Solari per click
+    managerCost: 1000,
+    unlocked: false,
+    hasManager: false,
+    icon: "💰",
+  },
+  plasteel_refinery: {
+    name: "Plasteel Refinery",
+    description: "Process raw materials into durable plasteel, essential for advanced construction.",
+    level: 0,
+    costToUpgrade: 0,
+    productionRate: 0,
+    productionResource: "plasteel",
+    baseCost: 300, // Solari
+    costMultiplier: 1.8,
+    baseProduction: 0.5, // Plasteel per second
+    productionMultiplier: 1.18,
+    manualClickYield: 2, // Plasteel per click
+    managerCost: 1500,
+    unlocked: false,
+    hasManager: false,
+    icon: "🔧",
+  },
+  melange_synthesis_lab: {
+    name: "Melange Synthesis Lab",
+    description: "Research and synthesize artificial Melange, a highly valuable and rare commodity.",
+    level: 0,
+    costToUpgrade: 0,
+    productionRate: 0,
+    productionResource: "melange",
+    baseCost: 1000, // Solari
+    costMultiplier: 2.0,
+    baseProduction: 0.01, // Melange per second (1 every 100 seconds)
+    productionMultiplier: 1.2,
+    manualClickYield: 0.1, // Melange per click
+    managerCost: 5000,
+    unlocked: false,
+    hasManager: false,
+    icon: "🔥",
   },
 }
 
-export function EmpireTab({ player, resources, onInvest }: EmpireTabProps) {
-  const [ventures, setVentures] = useState<Record<string, Investment>>(player.investments || initialVentures)
+export function EmpireTab({ player, resources, onInvest, onManualGather, onHireManager }: EmpireTabProps) {
+  // Use player.investments directly, as it's managed by the parent (app/page.tsx)
+  const ventures = player.investments || initialVentures
 
   const handleInvestment = (ventureId: string) => {
-    const venture = ventures[ventureId]
-    if (resources.solari >= venture.costToUpgrade) {
-      const updatedVenture = {
-        ...venture,
-        level: venture.level + 1,
-        costToUpgrade: Math.floor(venture.costToUpgrade * 1.5), // Increase cost for next level (less steep)
-        productionRate: venture.productionRate * 1.1, // Increase production by 10%
-      }
-      setVentures((prev) => ({ ...prev, [ventureId]: updatedVenture }))
-      onInvest(ventureId) // This should trigger global state update & resource deduction
-    } else {
-      alert("Not enough Solari to upgrade this venture!")
-    }
+    onInvest(ventureId) // Delegate to parent handler
   }
 
   return (
@@ -68,30 +119,77 @@ export function EmpireTab({ player, resources, onInvest }: EmpireTabProps) {
         {Object.entries(ventures).map(([id, venture]) => (
           <div key={id} className="tycoon-building p-6 rounded-lg shadow-lg flex flex-col justify-between">
             <div>
-              <h3 className="text-xl font-orbitron text-amber-300 mb-2">{venture.name}</h3>
+              <h3 className="text-xl font-orbitron text-amber-300 mb-2">
+                {venture.icon} {venture.name}
+              </h3>
               <p className="text-sm text-stone-300 mb-1">
                 Level: <span className="font-bold text-white">{venture.level}</span>
               </p>
               <p className="text-sm text-stone-300 mb-3">{venture.description}</p>
-              <p className="text-sm text-stone-300 mb-1">
-                Current Production:{" "}
-                <span className="font-bold text-green-400">
-                  {venture.productionRate.toFixed(2)} {venture.productionResource} / sec
+              {venture.unlocked && (
+                <>
+                  <p className="text-sm text-stone-300 mb-1">
+                    Manual Yield:{" "}
+                    <span className="font-bold text-green-400">
+                      {venture.manualClickYield.toFixed(2)} {venture.productionResource} / click
+                    </span>
+                  </p>
+                  <p className="text-sm text-stone-300 mb-4">
+                    Auto Production:{" "}
+                    <span className="font-bold text-green-400">
+                      {venture.productionRate.toFixed(2)} {venture.productionResource} / sec
+                    </span>
+                  </p>
+                </>
+              )}
+              <p className="text-sm text-stone-300 mb-4">
+                {venture.unlocked ? "Upgrade Cost" : "Unlock Cost"}:{" "}
+                <span className="font-bold text-yellow-400">
+                  {(venture.unlocked ? venture.costToUpgrade : venture.baseCost).toLocaleString()} Solari
                 </span>
               </p>
-              <p className="text-sm text-stone-300 mb-4">
-                Upgrade Cost:{" "}
-                <span className="font-bold text-yellow-400">{venture.costToUpgrade.toLocaleString()} Solari</span>
-                {/* Add other resource costs if applicable, e.g., Plasteel for processing_plant */}
-              </p>
             </div>
-            <button
-              onClick={() => handleInvestment(id)}
-              disabled={resources.solari < venture.costToUpgrade} // Basic disable
-              className="w-full mt-auto py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md transition duration-150 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
-            >
-              {venture.level === 0 ? "Invest" : "Upgrade Venture"}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleInvestment(id)}
+                disabled={resources.solari < (venture.unlocked ? venture.costToUpgrade : venture.baseCost)}
+                className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md transition duration-150 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+              >
+                {venture.unlocked ? "Upgrade Venture" : "Unlock Venture"}
+              </button>
+              {venture.unlocked && (
+                <>
+                  <button
+                    onClick={() => onManualGather(id)}
+                    className="w-full py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-md transition duration-150 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                  >
+                    Manual Gather
+                  </button>
+                  {!venture.hasManager && (
+                    <button
+                      onClick={() => onHireManager(id)}
+                      disabled={resources.solari < venture.managerCost}
+                      className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition duration-150 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                      title={
+                        resources.solari < venture.managerCost
+                          ? `Need ${venture.managerCost.toLocaleString()} Solari`
+                          : `Hire Manager for ${venture.managerCost.toLocaleString()} Solari`
+                      }
+                    >
+                      Hire Manager
+                    </button>
+                  )}
+                  {venture.hasManager && (
+                    <button
+                      disabled
+                      className="w-full py-2 px-4 bg-stone-500 text-white font-semibold rounded-md cursor-not-allowed"
+                    >
+                      Manager Hired (Auto-Gathering)
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>

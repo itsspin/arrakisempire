@@ -62,7 +62,7 @@ export const STATIC_DATA = {
     sardaukar: {
       name: "Sardaukar Elite",
       icon: "⚔️",
-      health: 140,
+      health: 200, // Increased from 140
       attack: 28,
       defense: 15,
       xp: 180,
@@ -74,7 +74,7 @@ export const STATIC_DATA = {
     guildNavigator: {
       name: "Guild Navigator",
       icon: "👁️",
-      health: 190,
+      health: 250, // Increased from 190
       attack: 24,
       defense: 20,
       xp: 250,
@@ -87,7 +87,7 @@ export const STATIC_DATA = {
     mentat: {
       name: "Corrupted Mentat",
       icon: "🧠",
-      health: 170,
+      health: 220, // Increased from 170
       attack: 32,
       defense: 12,
       xp: 220,
@@ -100,7 +100,7 @@ export const STATIC_DATA = {
     beastRabban: {
       name: "Beast Rabban",
       icon: "👹",
-      health: 380,
+      health: 500, // Increased from 380
       attack: 45,
       defense: 25,
       xp: 450,
@@ -113,7 +113,7 @@ export const STATIC_DATA = {
     baronHarkonnen: {
       name: "Baron Vladimir Harkonnen",
       icon: "🦹",
-      health: 750,
+      health: 1000, // Increased from 750
       attack: 65,
       defense: 35,
       xp: 900,
@@ -126,7 +126,7 @@ export const STATIC_DATA = {
     sandworm: {
       name: "Shai-Hulud",
       icon: "🐛",
-      health: 1400,
+      health: 2000, // Increased from 1400
       attack: 110,
       defense: 50,
       xp: 1700,
@@ -238,13 +238,16 @@ export const STATIC_DATA = {
       icon: "✨",
       rewards: { spice: 500, melange: 25 },
       duration: 300000,
+      type: "economy",
     },
     {
       name: "Sandstorm",
       description: "A great sandstorm sweeps across the desert!",
       icon: "🌪️",
-      effect: "energy_drain",
+      effect: "water_drain", // Changed from energy_drain to water_drain for thematic consistency
+      effectValue: 2, // Doubles water cost
       duration: 180000,
+      type: "hazard",
     },
     {
       name: "Guild Heighliner",
@@ -252,6 +255,7 @@ export const STATIC_DATA = {
       icon: "🚀",
       rewards: { rareMaterials: 50, melange: 15 },
       duration: 600000,
+      type: "economy",
     },
     {
       name: "Fremen Gathering",
@@ -259,6 +263,7 @@ export const STATIC_DATA = {
       icon: "🏔️",
       rewards: { water: 200, xp: 500 },
       duration: 240000,
+      type: "diplomacy",
     },
     {
       name: "Imperial Raid",
@@ -267,8 +272,40 @@ export const STATIC_DATA = {
       effect: "combat_boost",
       rewards: { solari: 1000, rareMaterials: 20 },
       duration: 420000,
+      type: "hazard",
+    },
+    {
+      name: "Wormsign",
+      description: "A massive sandworm is approaching! Seek shelter or prepare for battle!",
+      icon: "🐛",
+      effect: "sandworm_attack",
+      duration: 60000, // Short duration before attack
+      type: "hazard",
+      triggersNext: "Shai-Hulud Attack", // Triggers the actual attack event
+    },
+    {
+      name: "Shai-Hulud Attack",
+      description: "A sandworm attacks a random territory!",
+      icon: "💥",
+      effect: "territory_destruction", // New effect type
+      duration: 0, // Instant effect
+      type: "hazard",
+      isChainedEvent: true, // This event is only triggered by another event
+    },
+    {
+      name: "Spice Market Boom",
+      description: "The demand for Spice has surged across the Imperium!",
+      icon: "📈",
+      effect: "spice_boost",
+      effectValue: 1.5, // 50% increase in spice value/production
+      duration: 300000,
+      type: "economy",
     },
   ],
+  WORLD_EVENT_CONFIG: {
+    maxActiveEvents: 3, // Max number of non-chained world events active at once
+    newEventChancePerTick: 0.002, // Base chance per second for a new event to spawn
+  },
   ABILITIES: {
     mentatCalculation: {
       id: "mentatCalculation",
