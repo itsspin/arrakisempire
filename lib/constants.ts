@@ -27,6 +27,13 @@ export const CONFIG = {
   MINE_PLASTEEL_YIELD: 5, // Plasteel gained
   COLLECT_WATER_ENERGY_COST: 5, // Energy cost to collect water
   COLLECT_WATER_YIELD: 10, // Water gained
+  ENEMY_AGGRO_RANGE: 5, // How close player needs to be for enemies to chase
+  ENEMY_RANDOM_MOVE_CHANCE: 0.2, // Chance (0-1) for an enemy to move randomly if player isn't in aggro range
+  NEW_ENEMY_SPAWN_CHANCE_PER_TICK: 0.005, // 0.5% chance per second to spawn a new enemy
+  MAX_DYNAMIC_ENEMIES_FACTOR: 0.02, // Max dynamic enemies = MAP_SIZE * MAP_SIZE * this_factor
+  NEW_WORLD_EVENT_CHANCE_PER_TICK: 0.002, // 0.2% chance per second to trigger a new world event
+  WORLD_EVENT_ENERGY_DRAIN_RATE: 1, // Energy drained per tick by relevant world events
+  ENEMY_TARGET_SCAN_RANGE: 7, // Range for enemies to "see" player for targeting
 }
 
 export const PLAYER_COLORS = ["red", "blue", "green", "purple", "orange", "pink", "yellow", "cyan"]
