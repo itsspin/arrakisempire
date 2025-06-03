@@ -2114,8 +2114,12 @@ export default function ArrakisGamePage() {
                     playerColor={gameState.player.color}
                   />
                 </div>
-                {/* HousesPanel should now reflect actual AI players from gameState.onlinePlayers */}
-                <HousesPanel onlinePlayers={Object.values(gameState.onlinePlayers)} />
+                {/* HousesPanel now also tracks territory control */}
+                <HousesPanel
+                  onlinePlayers={gameState.onlinePlayers}
+                  territories={gameState.map.territories}
+                  player={{ id: gameState.player.id, house: gameState.player.house }}
+                />
                 {/* WorldEventsPanel should show dynamic events */}
                 <WorldEventsPanel worldEvents={gameState.worldEvents} />
                 <TradePanel player={gameState.player} resources={gameState.resources} />
