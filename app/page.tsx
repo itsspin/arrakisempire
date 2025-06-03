@@ -641,7 +641,11 @@ export default function ArrakisGamePage() {
       const currentFullGameState = gameStateRef.current // Use ref for up-to-date inventory etc.
       const newPlayer = { ...playerState }
       const newResources = { ...resourcesState }
-      const newMap = { ...mapState, enemies: { ...mapState.enemies } } // Be careful with deep copies if needed
+      const newMap = {
+        ...mapState,
+        enemies: { ...mapState.enemies },
+        territories: { ...mapState.territories },
+      } // Be careful with deep copies if needed
       const updatedInventory = [...currentFullGameState.inventory] // Use inventory from the ref
 
       if (result === "win") {
@@ -723,6 +727,42 @@ export default function ArrakisGamePage() {
             addNotification(`You captured ${terr.name || terrKey}!`, "success")
           }
         }
+
+        // Claim surrounding sectors for the player's house
+        const directions = [-1, 0, 1]
+        directions.forEach((dx) => {
+          directions.forEach((dy) => {
+            if (dx === 0 && dy === 0) return
+            const tx = enemyInstance.position.x + dx
+            const ty = enemyInstance.position.y + dy
+            if (tx < 0 || tx >= CONFIG.MAP_SIZE || ty < 0 || ty >= CONFIG.MAP_SIZE) return
+            const tKey = `${tx},${ty}`
+            const terr = newMap.territories[tKey]
+            if (terr) {
+              const prevOwner = terr.ownerId
+              newMap.territories[tKey] = {
+                ...terr,
+                ownerId: newPlayer.id,
+                ownerName: newPlayer.name,
+                ownerColor: newPlayer.color,
+                captureLevel: 0,
+              }
+              if (!newPlayer.territories.find((t) => t.id === terr.id)) {
+                newPlayer.territories.push(newMap.territories[tKey])
+              }
+              if (
+                prevOwner &&
+                prevOwner !== newPlayer.id &&
+                currentFullGameState.onlinePlayers[prevOwner]
+              ) {
+                currentFullGameState.onlinePlayers[prevOwner].territories = currentFullGameState.onlinePlayers[prevOwner].territories.filter(
+                  (t) => t.id !== terr.id,
+                )
+              }
+            }
+          })
+        })
+        addNotification("Your house seizes the surrounding territory!", "success")
       } else if (result === "lose") {
         newPlayer.position = { ...newPlayer.basePosition }
         newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
