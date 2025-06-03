@@ -5,11 +5,11 @@ import type { GameState, TerritoryDetails, Player } from "@/types/game"
 
 interface HousesPanelProps {
   onlinePlayers: GameState["onlinePlayers"]
-  territories: Record<string, TerritoryDetails>
+  territories?: Record<string, TerritoryDetails>
   player: Pick<Player, "id" | "house">
 }
 
-export function HousesPanel({ onlinePlayers, territories, player }: HousesPanelProps) {
+export function HousesPanel({ onlinePlayers, territories = {}, player }: HousesPanelProps) {
   // Calculate player distribution per house
   const houseCounts: Record<string, number> = {}
   let totalPlayersWithHouse = 0
