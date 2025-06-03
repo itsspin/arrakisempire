@@ -24,6 +24,7 @@ import { WorldChat } from "@/components/world-chat"
 import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
+import { UpdatesTab } from "@/components/updates-tab"
 
 import type {
   GameState,
@@ -2078,7 +2079,7 @@ export default function ArrakisGamePage() {
               </div>
             </div>
           )}
-          {gameState.currentTab === "updates" && ` `}
+          {gameState.currentTab === "updates" && <UpdatesTab />}
         </div>
       </main>
 
