@@ -123,6 +123,8 @@ export interface TerritoryDetails extends MapElement {
   // NEW: For Sandworm destruction
   isDestroyed?: boolean
   destroyedUntil?: number
+  // NEW: Track how weakened a territory is when players fail to capture it
+  captureLevel?: number
 }
 
 export interface Investment {
@@ -234,6 +236,8 @@ export interface GameState {
   // NEW: Track last time AI and World Events were processed
   lastAIProcessingTime?: number
   lastWorldEventProcessingTime?: number
+  // NEW: Track which territory is being contested in combat
+  capturingTerritoryId?: string | null
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"

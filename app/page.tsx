@@ -83,6 +83,7 @@ const generateMockTerritories = (): Record<string, TerritoryDetails> => {
         perks: [`+${Math.floor(Math.random() * 5 + 1)}% Spice Production`],
         name: `Sector ${String.fromCharCode(65 + x)}${y + 1}`,
         isDestroyed: false, // Initialize as not destroyed
+        captureLevel: 0,
       }
     }
   }
@@ -320,6 +321,7 @@ const initialGameState: GameState = {
   abilityCooldowns: {},
   lastAIProcessingTime: 0, // NEW
   lastWorldEventProcessingTime: 0, // NEW
+  capturingTerritoryId: null,
 }
 
 const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
@@ -698,10 +700,54 @@ export default function ArrakisGamePage() {
           // Check if enemy still exists before updating
           newMap.enemies[enemyKey] = { ...enemyInstance, cooldownUntil: Date.now() + CONFIG.ENEMY_COOLDOWN }
         }
+        if (currentFullGameState.capturingTerritoryId) {
+          const terrKey = currentFullGameState.capturingTerritoryId
+          const terr = newMap.territories[terrKey]
+          if (terr) {
+            const oldOwner = terr.ownerId
+            newMap.territories[terrKey] = {
+              ...terr,
+              ownerId: newPlayer.id,
+              ownerName: newPlayer.name,
+              ownerColor: newPlayer.color,
+              captureLevel: 0,
+            }
+            newPlayer.territories = [...newPlayer.territories, newMap.territories[terrKey]]
+            if (oldOwner && currentFullGameState.onlinePlayers[oldOwner]) {
+              currentFullGameState.onlinePlayers[oldOwner].territories = currentFullGameState.onlinePlayers[oldOwner].territories.filter(
+                (t) => t.id !== terr.id,
+              )
+            }
+            addNotification(`You captured ${terr.name || terrKey}!`, "success")
+          }
+        }
       } else if (result === "lose") {
         newPlayer.position = { ...newPlayer.basePosition }
         newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
         addNotification("You respawned at your base.", "info")
+        if (currentFullGameState.capturingTerritoryId) {
+          const terrKey = currentFullGameState.capturingTerritoryId
+          const terr = newMap.territories[terrKey]
+          if (terr) {
+            const newLevel = (terr.captureLevel || 0) + 1
+            terr.captureLevel = newLevel
+            if (newLevel >= CONFIG.TERRITORY_CAPTURE_THRESHOLD) {
+              terr.ownerId = null
+              terr.ownerName = undefined
+              terr.ownerColor = undefined
+              addNotification(
+                `${terr.name || terrKey} is now unclaimed after heavy fighting!`,
+                "info",
+              )
+            } else {
+              addNotification(
+                `Territory weakened (${newLevel}/${CONFIG.TERRITORY_CAPTURE_THRESHOLD}).`,
+                "warning",
+              )
+            }
+            newMap.territories[terrKey] = { ...terr }
+          }
+        }
       }
 
       const resetCombat = {
@@ -722,6 +768,7 @@ export default function ArrakisGamePage() {
         combat: resetCombat,
         isCombatModalOpen: false,
         inventory: updatedInventory,
+        capturingTerritoryId: null,
         // If ability modal should open, set flag here:
         isAbilitySelectionModalOpen:
           result === "win" &&
@@ -1355,6 +1402,7 @@ export default function ArrakisGamePage() {
                     ownerId: ai.id,
                     ownerName: ai.name,
                     ownerColor: ai.color,
+                    captureLevel: 0,
                   }
                   ai.territories.push(newMap.territories[key]) // Add to AI's list
                   addNotification(`${ai.name} (${ai.house}) has claimed Sector ${targetTerritory.name || key}!`, "info")
@@ -1697,6 +1745,54 @@ export default function ArrakisGamePage() {
           }
         }
 
+        // Territory capture attempt when entering another house's sector
+        if (
+          territoryOnCell &&
+          territoryOnCell.ownerId &&
+          territoryOnCell.ownerId !== player.id
+        ) {
+          const owner = onlinePlayers[territoryOnCell.ownerId]
+          if (owner) {
+            const enemyOwner: Enemy = {
+              id: `owner_${owner.id}`,
+              type: "player",
+              name: owner.name,
+              icon: "👤",
+              health: owner.maxHealth,
+              currentHealth: owner.maxHealth,
+              attack: owner.attack,
+              defense: owner.defense,
+              xp: owner.level * 20,
+              loot: {},
+              level: owner.level,
+              position: { x: targetX, y: targetY },
+              description: "Territory Owner",
+            }
+            addNotification(
+              `You challenge ${owner.name} for control of this territory!`,
+              "info",
+            )
+            return {
+              ...prev,
+              player: { ...newPlayer, isDefending: false },
+              resources: newResources,
+              isCombatModalOpen: true,
+              capturingTerritoryId: key,
+              combat: {
+                active: true,
+                enemy: enemyOwner,
+                turn: "player",
+                log: [
+                  `<p class="log-info">You challenged ${owner.name} for control of this territory!</p>`,
+                ],
+                playerHealthAtStart: newPlayer.health,
+                enemyHealthAtStart: enemyOwner.health,
+                combatRound: 1,
+              },
+            }
+          }
+        }
+
         return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
       })
     },
@@ -1807,6 +1903,7 @@ export default function ArrakisGamePage() {
           ownerId: newPlayer.id,
           ownerName: newPlayer.name,
           ownerColor: newPlayer.color,
+          captureLevel: 0,
         }
         newMap.territories[territoryId] = updatedTerritory
         newPlayer.territories = [...newPlayer.territories, updatedTerritory] // Add to player's owned territories
