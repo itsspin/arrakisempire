@@ -1,3 +1,5 @@
+import type { PlayerColor } from "@/types/game"
+
 export const CONFIG = {
   MAP_SIZE: 200,
   VIEW_RADIUS: 7,
@@ -38,7 +40,22 @@ export const CONFIG = {
   TERRITORY_CAPTURE_THRESHOLD: 3, // Number of failed attempts before territory becomes purchasable
 }
 
-export const PLAYER_COLORS = ["red", "blue", "green", "purple", "orange", "pink", "yellow", "cyan"]
+export const PLAYER_COLORS = [
+  "red",
+  "blue",
+  "green",
+  "purple",
+  "orange",
+  "pink",
+  "yellow",
+  "cyan",
+]
+
+export const HOUSE_COLORS: Record<string, PlayerColor> = {
+  atreides: "blue",
+  harkonnen: "red",
+  fremen: "green",
+}
 
 export const DUNE_QUOTES = [
   "Fear is the mind-killer.",

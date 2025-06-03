@@ -41,7 +41,7 @@ import type {
   AIPlayer, // Added AIPlayer
   PlayerColor,
 } from "@/types/game"
-import { CONFIG, PLAYER_COLORS, RARITY_SCORES } from "@/lib/constants"
+import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
@@ -453,7 +453,10 @@ export default function ArrakisGamePage() {
                     ...newMapTerritories[key],
                     ownerId: aiPlayer.id,
                     ownerName: aiPlayer.name,
-                    ownerColor: aiPlayer.color,
+                    ownerColor:
+                      HOUSE_COLORS[
+                        aiPlayer.house as keyof typeof HOUSE_COLORS
+                      ] || aiPlayer.color,
                   }
                 }
               })
@@ -523,7 +526,9 @@ export default function ArrakisGamePage() {
                   ...terrToClaim,
                   ownerId: ai.id,
                   ownerName: ai.name,
-                  ownerColor: ai.color,
+                  ownerColor:
+                    HOUSE_COLORS[ai.house as keyof typeof HOUSE_COLORS] ||
+                    ai.color,
                 }
                 ai.territories.push(newGameState.map.territories[key])
               }
@@ -709,7 +714,9 @@ export default function ArrakisGamePage() {
               ...terr,
               ownerId: newPlayer.id,
               ownerName: newPlayer.name,
-              ownerColor: newPlayer.color,
+              ownerColor:
+                HOUSE_COLORS[newPlayer.house as keyof typeof HOUSE_COLORS] ||
+                newPlayer.color,
               captureLevel: 0,
             }
             newPlayer.territories = [...newPlayer.territories, newMap.territories[terrKey]]
@@ -972,7 +979,9 @@ export default function ArrakisGamePage() {
             ...newMapTerritories[key],
             ownerId: newPlayer.id,
             ownerName: newPlayer.name,
-            ownerColor: newPlayer.color,
+            ownerColor:
+              HOUSE_COLORS[newPlayer.house as keyof typeof HOUSE_COLORS] ||
+              newPlayer.color,
           }
         }
       })
@@ -984,9 +993,16 @@ export default function ArrakisGamePage() {
           // Give AIs new random territories
           const unownedTerritories = Object.values(newMapTerritories).filter((t) => !t.ownerId)
           if (unownedTerritories.length > 0) {
-            const terrToClaim = unownedTerritories[getRandomInt(0, unownedTerritories.length - 1)]
+            const terrToClaim =
+              unownedTerritories[getRandomInt(0, unownedTerritories.length - 1)]
             const key = `${terrToClaim.position.x},${terrToClaim.position.y}`
-            newMapTerritories[key] = { ...terrToClaim, ownerId: ai.id, ownerName: ai.name, ownerColor: ai.color }
+            newMapTerritories[key] = {
+              ...terrToClaim,
+              ownerId: ai.id,
+              ownerName: ai.name,
+              ownerColor:
+                HOUSE_COLORS[ai.house as keyof typeof HOUSE_COLORS] || ai.color,
+            }
             ai.territories.push(newMapTerritories[key])
           }
         }
@@ -1401,7 +1417,9 @@ export default function ArrakisGamePage() {
                     ...targetTerritory,
                     ownerId: ai.id,
                     ownerName: ai.name,
-                    ownerColor: ai.color,
+                    ownerColor:
+                      HOUSE_COLORS[ai.house as keyof typeof HOUSE_COLORS] ||
+                      ai.color,
                     captureLevel: 0,
                   }
                   ai.territories.push(newMap.territories[key]) // Add to AI's list
@@ -1902,7 +1920,9 @@ export default function ArrakisGamePage() {
           ...territory,
           ownerId: newPlayer.id,
           ownerName: newPlayer.name,
-          ownerColor: newPlayer.color,
+          ownerColor:
+            HOUSE_COLORS[newPlayer.house as keyof typeof HOUSE_COLORS] ||
+            newPlayer.color,
           captureLevel: 0,
         }
         newMap.territories[territoryId] = updatedTerritory
