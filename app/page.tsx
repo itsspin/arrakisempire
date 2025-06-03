@@ -1617,6 +1617,13 @@ export default function ArrakisGamePage() {
         const aiPlayerOnCell = Object.values(onlinePlayers).find(
           (ai) => ai.position.x === targetX && ai.position.y === targetY,
         )
+
+        const isMoving = dx !== 0 || dy !== 0
+
+        if (isMoving && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+          addNotification("You can only move to adjacent tiles!", "warning")
+          return prev
+        }
         if (aiPlayerOnCell && (dx !== 0 || dy !== 0) /* if moving to it */) {
           addNotification(`Cell occupied by ${aiPlayerOnCell.name}. Cannot move there.`, "warning")
           return prev
@@ -1642,7 +1649,6 @@ export default function ArrakisGamePage() {
         }
         waterCost = Math.round(waterCost * 10) / 10 // Round to one decimal
 
-        const isMoving = dx !== 0 || dy !== 0
         if (isMoving && resources.water < waterCost) {
           addNotification(`Not enough water to move (cost: ${waterCost})!`, "warning")
           return prev
