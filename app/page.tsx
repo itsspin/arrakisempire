@@ -1663,9 +1663,9 @@ export default function ArrakisGamePage() {
           // ... (combat initiation logic from original, ensure it uses scaledEnemy correctly)
           const originalEnemyData = STATIC_DATA.ENEMIES[enemyOnCell.type as keyof typeof STATIC_DATA.ENEMIES]
           let targetEnemyLevel = player.level
-          if (originalEnemyData.boss) targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 2))
-          else if (originalEnemyData.special) targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 1))
-          else targetEnemyLevel = Math.max(1, player.level - getRandomInt(0, 1))
+          if (originalEnemyData.boss) targetEnemyLevel = Math.max(1, player.level + getRandomInt(1, 3))
+          else if (originalEnemyData.special) targetEnemyLevel = Math.max(1, player.level + getRandomInt(1, 2))
+          else targetEnemyLevel = Math.max(1, player.level + getRandomInt(-1, 1))
 
           const levelDifference = targetEnemyLevel - originalEnemyData.level
           // Ensure scalingMultiplier is always positive and adjust by player gear
@@ -1675,8 +1675,9 @@ export default function ArrakisGamePage() {
             (player.equipment?.accessory?.attack || 0) +
             (player.equipment?.accessory?.defense || 0)
           const gearMultiplier = 1 + gearPower * CONFIG.GEAR_SCALING_FACTOR
-          const scalingMultiplier =
-            Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR) * gearMultiplier
+          const baseScaling = Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR)
+          const specialBonus = originalEnemyData.special ? 1 + CONFIG.SPECIAL_ENEMY_SCALING_BONUS : 1
+          const scalingMultiplier = baseScaling * gearMultiplier * specialBonus
 
           const scaledEnemy: Enemy = {
             ...enemyOnCell,
