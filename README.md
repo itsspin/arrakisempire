@@ -1,8 +1,8 @@
-# Arrakis Tycoon
+# Arrakis Spice Empire
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/travisrd-gmailcoms-projects/v0-arrakis-tycoon)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://arrakis-spice-empire.vercel.app)
 [![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/TLm0pvg2OR0)
 
 ## Overview
@@ -14,7 +14,13 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Your project is live at:
 
-**[https://vercel.com/travisrd-gmailcoms-projects/v0-arrakis-tycoon](https://vercel.com/travisrd-gmailcoms-projects/v0-arrakis-tycoon)**
+**[https://arrakis-spice-empire.vercel.app](https://arrakis-spice-empire.vercel.app)**
+
+## Play the Game
+
+Experience Arrakis Spice Empire in your browser:
+
+**[https://arrakis-spice-empire.vercel.app](https://arrakis-spice-empire.vercel.app)**
 
 ## Build your app
 
@@ -24,7 +30,7 @@ Continue building your app on:
 
 ## Latest Updates
 
-Recent additions to **Arrakis Tycoon** include:
+Recent additions to **Arrakis Spice Empire** include:
 
 - A guided onboarding flow for new players.
 - Real-time empire resource generation.
