@@ -25,6 +25,7 @@ import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
 import { UpdatesTab } from "@/components/updates-tab"
+import { Slider } from "@/components/ui/slider"
 
 import type {
   GameState,
@@ -386,6 +387,7 @@ export default function ArrakisGamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [itemRespawnQueue, setItemRespawnQueue] = useState<Record<string, { item: Item; respawnTime: number }>>({})
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
+  const [zoom, setZoom] = useState(1)
 
   const lastGeneralNotificationTime = useRef(0)
   const GENERAL_NOTIFICATION_COOLDOWN = 1000
@@ -1657,6 +1659,13 @@ export default function ArrakisGamePage() {
         const aiPlayerOnCell = Object.values(onlinePlayers).find(
           (ai) => ai.position.x === targetX && ai.position.y === targetY,
         )
+
+        const isMoving = dx !== 0 || dy !== 0
+
+        if (isMoving && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+          addNotification("You can only move to adjacent tiles!", "warning")
+          return prev
+        }
         if (aiPlayerOnCell && (dx !== 0 || dy !== 0) /* if moving to it */) {
           addNotification(`Cell occupied by ${aiPlayerOnCell.name}. Cannot move there.`, "warning")
           return prev
@@ -1682,7 +1691,6 @@ export default function ArrakisGamePage() {
         }
         waterCost = Math.round(waterCost * 10) / 10 // Round to one decimal
 
-        const isMoving = dx !== 0 || dy !== 0
         if (isMoving && resources.water < waterCost) {
           addNotification(`Not enough water to move (cost: ${waterCost})!`, "warning")
           return prev
@@ -1703,9 +1711,9 @@ export default function ArrakisGamePage() {
           // ... (combat initiation logic from original, ensure it uses scaledEnemy correctly)
           const originalEnemyData = STATIC_DATA.ENEMIES[enemyOnCell.type as keyof typeof STATIC_DATA.ENEMIES]
           let targetEnemyLevel = player.level
-          if (originalEnemyData.boss) targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 2))
-          else if (originalEnemyData.special) targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 1))
-          else targetEnemyLevel = Math.max(1, player.level - getRandomInt(0, 1))
+          if (originalEnemyData.boss) targetEnemyLevel = Math.max(1, player.level + getRandomInt(1, 3))
+          else if (originalEnemyData.special) targetEnemyLevel = Math.max(1, player.level + getRandomInt(1, 2))
+          else targetEnemyLevel = Math.max(1, player.level + getRandomInt(-1, 1))
 
           const levelDifference = targetEnemyLevel - originalEnemyData.level
           // Ensure scalingMultiplier is always positive and adjust by player gear
@@ -1715,8 +1723,9 @@ export default function ArrakisGamePage() {
             (player.equipment?.accessory?.attack || 0) +
             (player.equipment?.accessory?.defense || 0)
           const gearMultiplier = 1 + gearPower * CONFIG.GEAR_SCALING_FACTOR
-          const scalingMultiplier =
-            Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR) * gearMultiplier
+          const baseScaling = Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR)
+          const specialBonus = originalEnemyData.special ? 1 + CONFIG.SPECIAL_ENEMY_SCALING_BONUS : 1
+          const scalingMultiplier = baseScaling * gearMultiplier * specialBonus
 
           const scaledEnemy: Enemy = {
             ...enemyOnCell,
@@ -2006,6 +2015,23 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
+  const handleSellItem = useCallback(
+    (item: Item, inventoryIndex: number) => {
+      setGameState((prev) => {
+        const newResources = { ...prev.resources }
+        const newInventory = [...prev.inventory]
+        const rarityScore =
+          RARITY_SCORES[item.rarity as keyof typeof RARITY_SCORES] || 1
+        const sellPrice = rarityScore * CONFIG.GEAR_SELL_BASE
+        newResources.solari += sellPrice
+        newInventory[inventoryIndex] = null
+        addNotification(`Sold ${item.name} for ${sellPrice} Solari.`, "success")
+        return { ...prev, resources: newResources, inventory: newInventory }
+      })
+    },
+    [addNotification],
+  )
+
   const handleGenerateSpice = useCallback(() => {
     setGameState((prev) => {
       const newResources = { ...prev.resources }
@@ -2174,15 +2200,32 @@ export default function ArrakisGamePage() {
                   <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys to move • Click cells
                   to interact/purchase territory.
                 </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-stone-300 text-sm">Zoom:</span>
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.1}
+                    value={[zoom]}
+                    onValueChange={(v) => setZoom(v[0])}
+                    className="w-40"
+                  />
+                </div>
                 <MapGrid // Ensure MapGrid can take onlinePlayers to show AI positions/territories
                   player={gameState.player}
                   mapData={gameState.map}
                   onlinePlayers={gameState.onlinePlayers} // Pass AI players
                   worldEvents={gameState.worldEvents} // Pass dynamic world events
                   onCellClick={handleMapCellClick}
+                  zoom={zoom}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
+                  <HousesPanel
+                    onlinePlayers={gameState.onlinePlayers}
+                    territories={gameState.map.territories}
+                    player={{ id: gameState.player.id, house: gameState.player.house }}
+                  />
                   {/* World Events Summary - uses gameState.worldEvents which is now dynamic */}
                   <div className="bg-purple-800 p-4 rounded-lg border border-purple-500">
                     <h3 className="text-lg font-semibold text-purple-300 mb-3 font-orbitron">
@@ -2227,6 +2270,7 @@ export default function ArrakisGamePage() {
               equipment={gameState.equipment}
               inventory={gameState.inventory}
               onEquipItem={handleEquipItem}
+              onSellItem={handleSellItem}
               onOpenPrestigeModal={handleOpenPrestigeModal}
               onActivateAbility={handleActivateAbility}
               abilityCooldowns={gameState.abilityCooldowns}

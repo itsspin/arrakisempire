@@ -39,6 +39,7 @@ Recent additions to **Arrakis Spice Empire** include:
 - Multiplayer hub featuring world chat, trading, and a territory chart.
 - Improved leaderboard tracking player ranks and power.
 - Defeating an enemy now grants your house control of the surrounding sectors.
+- Ability to sell unused gear for Solari.
 
 ## How It Works
 

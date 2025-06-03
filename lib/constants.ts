@@ -19,11 +19,13 @@ export const CONFIG = {
   ITEM_RESPAWN_COOLDOWN: 60000, // 1 minute for items to respawn
   COMBAT_TURN_DELAY: 1500, // Delay between turns in combat (ms) - This is now just a visual delay for enemy action
   // Removed COMBAT_MINIGAME_DURATION, COMBAT_TURN_DURATION
-  ENEMY_SCALING_FACTOR: 0.1, // 10% stat increase per level difference
+  ENEMY_SCALING_FACTOR: 0.15, // 15% stat increase per level difference
   GEAR_SCALING_FACTOR: 0.01, // Additional scaling per gear power point
+  SPECIAL_ENEMY_SCALING_BONUS: 0.25, // Extra scaling for special enemies
   FLEE_CHANCE: 0.6, // 60% chance to flee successfully
   SPICE_SELL_COST: 50, // Spice required to sell
   SPICE_SELL_YIELD: 50, // Solari gained from selling spice
+  GEAR_SELL_BASE: 20, // Base Solari gained per rarity level when selling gear
   MINE_PLASTEEL_ENERGY_COST: 10, // Energy cost to mine plasteel
   MINE_PLASTEEL_YIELD: 5, // Plasteel gained
   COLLECT_WATER_ENERGY_COST: 5, // Energy cost to collect water
