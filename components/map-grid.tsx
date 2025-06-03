@@ -27,12 +27,14 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       let cellClass = "map-cell map-cell-desert" // Default to desert
       let cellContent = "" // Default desert cells will be styled by map-cell-desert
       let cellTitle = `Desert (${x},${y})`
+      let playerLabel: string | null = null
 
       // Player
       if (x === playerX && y === playerY) {
         cellClass += " map-cell-player"
         cellContent = "👤"
         cellTitle = `${player.name} (P${player.prestigeLevel}) - Your Position`
+        playerLabel = player.name
       }
       // Other players
       else {
@@ -43,6 +45,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
           cellClass += ` map-cell-other-player player-color-${otherPlayerOnCell.color || "gray"}`
           cellContent = "👤"
           cellTitle = `${otherPlayerOnCell.name} (P${otherPlayerOnCell.prestigeLevel || 0})`
+          playerLabel = otherPlayerOnCell.name
         }
       }
 
@@ -113,6 +116,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
               : {}
           }
         >
+          {playerLabel && <span className="player-name-label">{playerLabel}</span>}
           {cellContent}
         </div>,
       )

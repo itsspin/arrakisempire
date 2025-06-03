@@ -136,6 +136,18 @@ body {
   border: 2px solid currentColor !important;
 }
 
+.player-name-label {
+  position: absolute;
+  top: -0.8em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--cell-size) * 0.25);
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 2px #000;
+  pointer-events: none;
+}
+
 .map-cell-enemy {
   background: linear-gradient(135deg, #ef4444, #dc2626) !important;
   color: white !important;
