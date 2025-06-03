@@ -25,6 +25,7 @@ import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
 import { UpdatesTab } from "@/components/updates-tab"
+import { Slider } from "@/components/ui/slider"
 
 import type {
   GameState,
@@ -386,6 +387,7 @@ export default function ArrakisGamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [itemRespawnQueue, setItemRespawnQueue] = useState<Record<string, { item: Item; respawnTime: number }>>({})
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
+  const [zoom, setZoom] = useState(1)
 
   const lastGeneralNotificationTime = useRef(0)
   const GENERAL_NOTIFICATION_COOLDOWN = 1000
@@ -2134,12 +2136,24 @@ export default function ArrakisGamePage() {
                   <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys to move • Click cells
                   to interact/purchase territory.
                 </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-stone-300 text-sm">Zoom:</span>
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.1}
+                    value={[zoom]}
+                    onValueChange={(v) => setZoom(v[0])}
+                    className="w-40"
+                  />
+                </div>
                 <MapGrid // Ensure MapGrid can take onlinePlayers to show AI positions/territories
                   player={gameState.player}
                   mapData={gameState.map}
                   onlinePlayers={gameState.onlinePlayers} // Pass AI players
                   worldEvents={gameState.worldEvents} // Pass dynamic world events
                   onCellClick={handleMapCellClick}
+                  zoom={zoom}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
