@@ -38,6 +38,7 @@ Recent additions to **Arrakis Spice Empire** include:
 - Expanded prestige system with XP bonuses.
 - Multiplayer hub featuring world chat, trading, and a territory chart.
 - Improved leaderboard tracking player ranks and power.
+- Empire builder expanded with new ventures and a button to buy random territory.
 
 ## How It Works
 

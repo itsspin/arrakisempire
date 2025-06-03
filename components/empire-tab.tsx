@@ -1,6 +1,7 @@
 "use client"
 
 import type { Player, Resources, Investment } from "@/types/game"
+import { CONFIG } from "@/lib/constants"
 
 interface EmpireTabProps {
   player: Player
@@ -8,6 +9,7 @@ interface EmpireTabProps {
   onInvest: (ventureId: string) => void // Function to handle investment
   onManualGather: (ventureId: string) => void // New: Function for manual gathering
   onHireManager: (ventureId: string) => void // New: Function to hire manager
+  onPurchaseRandomTerritory: () => void // Buy a random territory
 }
 
 // Export initialVentures so it can be used in app/page.tsx for consistent state initialization
@@ -97,9 +99,50 @@ export const initialVentures: Record<string, Investment> = {
     hasManager: false,
     icon: "🔥",
   },
+  rare_materials_excavation: {
+    name: "Rare Materials Excavation",
+    description: "Deep-core mining operations to uncover rare and valuable minerals.",
+    level: 0,
+    costToUpgrade: 0,
+    productionRate: 0,
+    productionResource: "rareMaterials",
+    baseCost: 800,
+    costMultiplier: 1.85,
+    baseProduction: 0.2,
+    productionMultiplier: 1.15,
+    manualClickYield: 1,
+    managerCost: 2500,
+    unlocked: false,
+    hasManager: false,
+    icon: "⛏️",
+  },
+  orbital_trade_station: {
+    name: "Orbital Trade Station",
+    description: "Establish a spaceport for lucrative off-world commerce.",
+    level: 0,
+    costToUpgrade: 0,
+    productionRate: 0,
+    productionResource: "solari",
+    baseCost: 1500,
+    costMultiplier: 1.9,
+    baseProduction: 30,
+    productionMultiplier: 1.2,
+    manualClickYield: 60,
+    managerCost: 5000,
+    unlocked: false,
+    hasManager: false,
+    icon: "🏦",
+  },
 }
 
-export function EmpireTab({ player, resources, onInvest, onManualGather, onHireManager }: EmpireTabProps) {
+export function EmpireTab({
+  player,
+  resources,
+  onInvest,
+  onManualGather,
+  onHireManager,
+  onPurchaseRandomTerritory,
+}: EmpireTabProps) {
   // Use player.investments directly, as it's managed by the parent (app/page.tsx)
   const ventures = player.investments || initialVentures
 
@@ -206,6 +249,16 @@ export function EmpireTab({ player, resources, onInvest, onManualGather, onHireM
         ) : (
           <p className="text-sm text-stone-400">Acquire territories to gain passive bonuses to your empire.</p>
         )}
+      </div>
+      <div className="mt-6">
+        <button
+          onClick={onPurchaseRandomTerritory}
+          disabled={resources.solari < CONFIG.RANDOM_TERRITORY_PURCHASE_COST}
+          className="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded font-bold disabled:bg-stone-600"
+          title={`Costs at least ${CONFIG.RANDOM_TERRITORY_PURCHASE_COST.toLocaleString()} Solari`}
+        >
+          Buy Random Territory
+        </button>
       </div>
     </div>
   )

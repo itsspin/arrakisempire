@@ -1924,6 +1924,54 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
+  const handlePurchaseRandomTerritory = useCallback(() => {
+    setGameState((prev) => {
+      const newResources = { ...prev.resources }
+      const newPlayer = { ...prev.player }
+      const newMap = { ...prev.map, territories: { ...prev.map.territories } }
+
+      const territoryKeys = Object.keys(newMap.territories)
+      if (territoryKeys.length === 0) return prev
+
+      const randomKey = territoryKeys[Math.floor(Math.random() * territoryKeys.length)]
+      const territory = newMap.territories[randomKey]
+      if (!territory) return prev
+
+      const baseCost = CONFIG.RANDOM_TERRITORY_PURCHASE_COST
+      const finalCost = territory.ownerId ? baseCost * CONFIG.OWNED_TERRITORY_COST_MULTIPLIER : baseCost
+
+      if (newResources.solari < finalCost) {
+        addNotification(`Need ${finalCost.toLocaleString()} Solari to buy this territory!`, "warning")
+        return prev
+      }
+
+      newResources.solari -= finalCost
+      const updatedTerritory = {
+        ...territory,
+        ownerId: newPlayer.id,
+        ownerName: newPlayer.name,
+        ownerColor: newPlayer.color,
+        captureLevel: 0,
+      }
+      newMap.territories[randomKey] = updatedTerritory
+      const alreadyOwned = newPlayer.territories.find(
+        (t) => t.position.x === updatedTerritory.position.x && t.position.y === updatedTerritory.position.y,
+      )
+      if (!alreadyOwned) newPlayer.territories = [...newPlayer.territories, updatedTerritory]
+      else {
+        newPlayer.territories = newPlayer.territories.map((t) =>
+          t.position.x === updatedTerritory.position.x && t.position.y === updatedTerritory.position.y
+            ? updatedTerritory
+            : t,
+        )
+      }
+
+      addNotification(`Purchased ${territory.name || randomKey} for ${finalCost.toLocaleString()} Solari!`, "success")
+
+      return { ...prev, resources: newResources, player: newPlayer, map: newMap }
+    })
+  }, [addNotification])
+
   const handleEquipItem = useCallback(
     (item: Item, inventoryIndex: number) => {
       setGameState((prev) => {
@@ -2200,6 +2248,7 @@ export default function ArrakisGamePage() {
               onInvest={handleInvestInVenture}
               onManualGather={handleManualGather}
               onHireManager={handleHireManager}
+              onPurchaseRandomTerritory={handlePurchaseRandomTerritory}
             />
           )}
           {gameState.currentTab === "multiplayer" && (
