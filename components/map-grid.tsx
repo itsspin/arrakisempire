@@ -116,5 +116,5 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
     }
   }
 
-  return <div className="map-grid mx-auto">{cells}</div>
+  return <div className="map-grid mx-auto overflow-x-auto">{cells}</div>
 }
