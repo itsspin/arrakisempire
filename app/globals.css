@@ -633,3 +633,13 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #71717a;
 }
+@media (max-width: 480px) {
+  .combat-modal-content {
+    width: 95%;
+    padding: 15px;
+  }
+  .action-button {
+    flex: 1;
+    font-size: 0.875rem;
+  }
+}
