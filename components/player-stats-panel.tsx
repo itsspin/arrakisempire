@@ -59,6 +59,24 @@ export function PlayerStatsPanel({ player }: PlayerStatsPanelProps) {
             <span className="font-mono text-purple-400 font-bold prestige-glow">{player.prestigeLevel}</span>
           </div>
         </div>
+        <div className="p-2 bg-stone-600 rounded">
+          <div className="flex justify-between mb-1">
+            <span>Territories:</span>
+            <span className="font-mono">{player.territories.length}</span>
+          </div>
+        </div>
+        <div className="p-2 bg-stone-600 rounded">
+          <div className="flex justify-between mb-1">
+            <span>Enemies Defeated:</span>
+            <span className="font-mono">{player.totalEnemiesDefeated}</span>
+          </div>
+        </div>
+        <div className="p-2 bg-stone-600 rounded">
+          <div className="flex justify-between mb-1">
+            <span>Lifetime Spice:</span>
+            <span className="font-mono">{player.lifetimeSpice}</span>
+          </div>
+        </div>
       </div>
     </div>
   )

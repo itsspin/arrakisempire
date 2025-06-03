@@ -44,7 +44,7 @@ import type {
 import { CONFIG, PLAYER_COLORS, RARITY_SCORES } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
-import { doc, getDoc, setDoc } from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
 import { signInAnonymously } from "firebase/auth"
 
 import { initialVentures as empireInitialVentures } from "@/components/empire-tab"
@@ -337,6 +337,35 @@ const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
   return score
 }
 
+// Fetch leaderboard data for all players from Firestore
+const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
+  const snapshot = await getDocs(collection(db, "players"))
+  const players: RankedPlayer[] = []
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() as GameState
+    if (!data?.player) return
+    const equipmentScore = calculateEquipmentScore(data.equipment)
+    const power =
+      data.resources.solari * 0.01 +
+      data.player.territories.length * 50 +
+      equipmentScore * 100 +
+      data.player.totalEnemiesDefeated * 5
+    const rank = Math.max(1, 100 - Math.floor(power / 100))
+    const rankName = rank < 10 ? "Spice Baron" : rank < 50 ? "Guild Associate" : "Sand Nomad"
+    players.push({
+      id: data.player.id || docSnap.id,
+      name: data.player.name,
+      rank,
+      rankName,
+      house: data.player.house,
+      prestigeLevel: data.player.prestigeLevel,
+      color: data.player.color,
+      power,
+    })
+  })
+  return players.sort((a, b) => b.power - a.power)
+}
+
 // --- CONFIGURATION FOR NEW SYSTEMS ---
 const AI_CONFIG = {
   PROCESSING_INTERVAL: 10000, // AI acts every 10 seconds
@@ -513,6 +542,21 @@ export default function ArrakisGamePage() {
       }
     }
     initGame()
+  }, [])
+
+  // Periodically refresh leaderboard from Firestore
+  useEffect(() => {
+    const updateLeaderboard = async () => {
+      try {
+        const leaderboard = await fetchLeaderboardData()
+        setGameState((prev) => ({ ...prev, leaderboard }))
+      } catch (err) {
+        console.error("Failed to fetch leaderboard", err)
+      }
+    }
+    updateLeaderboard()
+    const interval = setInterval(updateLeaderboard, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleSendMessage = useCallback((message: string) => {
