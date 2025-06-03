@@ -74,7 +74,8 @@ body {
   padding: 8px;
   margin: 0 auto;
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-  width: max-content;
+  width: calc(var(--cell-size) * var(--map-columns));
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -82,6 +83,7 @@ body {
   .map-grid {
     --map-columns: 10;
     --cell-size: 28px;
+    width: calc(var(--cell-size) * var(--map-columns));
   }
 }
 
@@ -91,7 +93,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: calc(var(--cell-size) * 0.45);
   font-weight: bold;
   border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 4px;

@@ -9,9 +9,10 @@ interface MapGridProps {
   onlinePlayers: GameState["onlinePlayers"]
   worldEvents: GameState["worldEvents"]
   onCellClick: (x: number, y: number) => void
+  zoom?: number
 }
 
-export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellClick }: MapGridProps) {
+export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellClick, zoom = 1 }: MapGridProps) {
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
 
@@ -118,5 +119,14 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
     }
   }
 
-  return <div className="map-grid mx-auto overflow-x-auto">{cells}</div>
+  const gridStyle = {
+    "--cell-size": `${32 * zoom}px`,
+    "--map-columns": radius * 2 + 1,
+  } as React.CSSProperties
+
+  return (
+    <div className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
+      {cells}
+    </div>
+  )
 }
