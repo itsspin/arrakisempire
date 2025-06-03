@@ -2175,6 +2175,11 @@ export default function ArrakisGamePage() {
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
+                  <HousesPanel
+                    onlinePlayers={gameState.onlinePlayers}
+                    territories={gameState.map.territories}
+                    player={{ id: gameState.player.id, house: gameState.player.house }}
+                  />
                   {/* World Events Summary - uses gameState.worldEvents which is now dynamic */}
                   <div className="bg-purple-800 p-4 rounded-lg border border-purple-500">
                     <h3 className="text-lg font-semibold text-purple-300 mb-3 font-orbitron">
