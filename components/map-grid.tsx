@@ -50,10 +50,9 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       if (territory) {
         cellClass += " map-cell-territory"
         if (territory.ownerId === player.id) {
-          cellClass += " territory-owned"
           cellTitle = `Your Territory: ${territory.name || key}`
         } else if (territory.ownerId) {
-          cellClass += ` player-color-${territory.ownerColor || "gray"}` // Border color based on owner
+          cellClass += ` player-color-${territory.ownerColor || "gray"}`
           cellTitle = `Territory of ${territory.ownerName || "Unknown"} (${key})`
         } else {
           cellTitle = `Unclaimed Territory (${key}) - Cost: ${territory.purchaseCost}`
@@ -105,8 +104,11 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
           title={cellTitle}
           onClick={() => onCellClick(x, y)}
           style={
-            territory && territory.ownerId && territory.ownerId !== player.id
-              ? { borderColor: `var(--player-color-${territory.ownerColor || "gray"})` }
+            territory && territory.ownerId
+              ? {
+                  borderColor: `var(--player-color-${territory.ownerColor || "gray"})`,
+                  backgroundColor: `var(--player-color-${territory.ownerColor || "gray"})`,
+                }
               : {}
           }
         >
