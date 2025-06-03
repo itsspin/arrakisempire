@@ -50,7 +50,12 @@ export function TerritoryModal({ isOpen, onClose, territory, playerResources, on
                 ))}
             </ul>
             <button
-              onClick={() => onPurchase(territory.id, territory.purchaseCost)}
+              onClick={() =>
+                onPurchase(
+                  `${territory.x},${territory.y}`,
+                  territory.purchaseCost,
+                )
+              }
               disabled={!canAfford}
               className="w-full py-3 bg-amber-600 hover:bg-amber-700 rounded font-bold text-lg disabled:bg-stone-500 disabled:cursor-not-allowed"
             >
