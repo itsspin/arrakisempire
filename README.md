@@ -22,6 +22,17 @@ Continue building your app on:
 
 **[https://v0.dev/chat/projects/TLm0pvg2OR0](https://v0.dev/chat/projects/TLm0pvg2OR0)**
 
+## Latest Updates
+
+Recent additions to **Arrakis Tycoon** include:
+
+- A guided onboarding flow for new players.
+- Real-time empire resource generation.
+- Instant combat initiation when engaging enemies.
+- Expanded prestige system with XP bonuses.
+- Multiplayer hub featuring world chat, trading, and a territory chart.
+- Improved leaderboard tracking player ranks and power.
+
 ## How It Works
 
 1. Create and modify your project using [v0.dev](https://v0.dev)
