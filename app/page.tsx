@@ -363,10 +363,10 @@ const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
     if (!data?.player) return
     const equipmentScore = calculateEquipmentScore(data.equipment)
     const score = calculatePlayerScore(
-      data.player.territories.length,
-      data.resources.solari,
+      data.player.territories?.length ?? 0,
+      data.resources?.solari ?? 0,
       equipmentScore,
-      data.player.totalEnemiesDefeated,
+      data.player.totalEnemiesDefeated ?? 0,
     )
     players.push({
       id: data.player.id || docSnap.id,
