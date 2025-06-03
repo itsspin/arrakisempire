@@ -339,6 +339,20 @@ const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
   return score
 }
 
+// Calculate an overall score for ranking players
+const calculatePlayerScore = (
+  territoryCount: number,
+  solari: number,
+  equipmentScore: number,
+  kills: number,
+): number => {
+  const territoryScore = territoryCount * 100
+  const killScore = kills * 20
+  const itemScore = equipmentScore * 50
+  const solariScore = solari * 0.02
+  return territoryScore + killScore + itemScore + solariScore
+}
+
 // Fetch leaderboard data for all players from Firestore
 const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
   const snapshot = await getDocs(collection(db, "players"))
@@ -347,25 +361,29 @@ const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
     const data = docSnap.data() as GameState
     if (!data?.player) return
     const equipmentScore = calculateEquipmentScore(data.equipment)
-    const power =
-      data.resources.solari * 0.01 +
-      data.player.territories.length * 50 +
-      equipmentScore * 100 +
-      data.player.totalEnemiesDefeated * 5
-    const rank = Math.max(1, 100 - Math.floor(power / 100))
-    const rankName = rank < 10 ? "Spice Baron" : rank < 50 ? "Guild Associate" : "Sand Nomad"
+    const score = calculatePlayerScore(
+      data.player.territories.length,
+      data.resources.solari,
+      equipmentScore,
+      data.player.totalEnemiesDefeated,
+    )
     players.push({
       id: data.player.id || docSnap.id,
       name: data.player.name,
-      rank,
-      rankName,
+      rank: 0,
+      rankName: "",
       house: data.player.house,
       prestigeLevel: data.player.prestigeLevel,
       color: data.player.color,
-      power,
+      power: score,
     })
   })
-  return players.sort((a, b) => b.power - a.power)
+  const sorted = players.sort((a, b) => b.power - a.power)
+  return sorted.map((p, i) => {
+    const rank = i + 1
+    const rankName = rank < 10 ? "Spice Baron" : rank < 50 ? "Guild Associate" : "Sand Nomad"
+    return { ...p, rank, rankName }
+  })
 }
 
 // --- CONFIGURATION FOR NEW SYSTEMS ---
@@ -1474,15 +1492,16 @@ export default function ArrakisGamePage() {
           }
         }
 
-        // Calculate power for current player
+        // Calculate score for current player
         const playerEquipmentScore = calculateEquipmentScore(prev.equipment)
-        newPlayer.power =
-          newResources.solari * 0.01 + // 1 Solari = 0.01 power
-          newPlayer.territories.length * 50 + // 1 territory = 50 power
-          playerEquipmentScore * 100 + // 1 equipment rarity point = 100 power
-          newPlayer.totalEnemiesDefeated * 5 // 1 kill = 5 power
+        newPlayer.power = calculatePlayerScore(
+          newPlayer.territories.length,
+          newResources.solari,
+          playerEquipmentScore,
+          newPlayer.totalEnemiesDefeated,
+        )
 
-        // Update player rank based on power (lower rank number is better)
+        // Update player rank based on score (lower rank number is better)
         newPlayer.rank = Math.max(1, 100 - Math.floor(newPlayer.power / 100))
         newPlayer.rankName =
           newPlayer.rank < 10 ? "Spice Baron" : newPlayer.rank < 50 ? "Guild Associate" : "Sand Nomad"
@@ -1503,15 +1522,16 @@ export default function ArrakisGamePage() {
 
         // Add AI players
         Object.values(newOnlinePlayers).forEach((ai) => {
-          // Calculate AI power (simplified for now, can be expanded)
+          // Calculate AI score
           const aiEquipmentScore = calculateEquipmentScore(
             ai.equipment || { weapon: null, armor: null, accessory: null },
           )
-          ai.power =
-            ai.resources.solari * 0.01 +
-            ai.territories.length * 50 +
-            aiEquipmentScore * 100 +
-            ai.totalEnemiesDefeated * 5
+          ai.power = calculatePlayerScore(
+            ai.territories.length,
+            ai.resources.solari,
+            aiEquipmentScore,
+            ai.totalEnemiesDefeated,
+          )
 
           ai.rank = Math.max(1, 100 - Math.floor(ai.power / 100))
           ai.rankName = ai.rank < 10 ? "Spice Baron" : ai.rank < 50 ? "Guild Associate" : "Sand Nomad"
