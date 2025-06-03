@@ -1967,6 +1967,23 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
+  const handleSellItem = useCallback(
+    (item: Item, inventoryIndex: number) => {
+      setGameState((prev) => {
+        const newResources = { ...prev.resources }
+        const newInventory = [...prev.inventory]
+        const rarityScore =
+          RARITY_SCORES[item.rarity as keyof typeof RARITY_SCORES] || 1
+        const sellPrice = rarityScore * CONFIG.GEAR_SELL_BASE
+        newResources.solari += sellPrice
+        newInventory[inventoryIndex] = null
+        addNotification(`Sold ${item.name} for ${sellPrice} Solari.`, "success")
+        return { ...prev, resources: newResources, inventory: newInventory }
+      })
+    },
+    [addNotification],
+  )
+
   const handleGenerateSpice = useCallback(() => {
     setGameState((prev) => {
       const newResources = { ...prev.resources }
@@ -2188,6 +2205,7 @@ export default function ArrakisGamePage() {
               equipment={gameState.equipment}
               inventory={gameState.inventory}
               onEquipItem={handleEquipItem}
+              onSellItem={handleSellItem}
               onOpenPrestigeModal={handleOpenPrestigeModal}
               onActivateAbility={handleActivateAbility}
               abilityCooldowns={gameState.abilityCooldowns}
