@@ -137,6 +137,47 @@ export const STATIC_DATA = {
       spawnChance: 0.0005, // Legendary rare
       description: "The Great Sandworm. Maker of spice.",
     },
+    reverendMother: {
+      name: "Reverend Mother Mohiam",
+      icon: "🧙",
+      health: 800,
+      attack: 60,
+      defense: 30,
+      xp: 700,
+      loot: { melange: 50, rareMaterials: 25, solari: 2000 },
+      boss: true,
+      level: 15,
+      spawnChance: 0.0015, // Very rare
+      special: true,
+      description: "Bene Gesserit matriarch wielding the Voice.",
+    },
+    countFenring: {
+      name: "Count Fenring",
+      icon: "🗡️",
+      health: 600,
+      attack: 55,
+      defense: 30,
+      xp: 600,
+      loot: { solari: 1500, rareMaterials: 20, melange: 15 },
+      boss: true,
+      level: 12,
+      spawnChance: 0.0015, // Very rare
+      description: "The Emperor's deadly assassin and advisor.",
+    },
+    emperorShaddam: {
+      name: "Padishah Emperor Shaddam IV",
+      icon: "👑",
+      health: 1500,
+      attack: 80,
+      defense: 40,
+      xp: 1200,
+      loot: { solari: 5000, spice: 500, rareMaterials: 40, melange: 40 },
+      boss: true,
+      legendary: true,
+      level: 22,
+      spawnChance: 0.0007, // Legendary rare
+      description: "Ruler of the Known Universe, guarded by elite troops.",
+    },
   },
   ITEMS: {
     crysknife: {
