@@ -35,6 +35,7 @@ export const CONFIG = {
   NEW_WORLD_EVENT_CHANCE_PER_TICK: 0.002, // 0.2% chance per second to trigger a new world event
   WORLD_EVENT_ENERGY_DRAIN_RATE: 1, // Energy drained per tick by relevant world events
   ENEMY_TARGET_SCAN_RANGE: 7, // Range for enemies to "see" player for targeting
+  TERRITORY_CAPTURE_THRESHOLD: 3, // Number of failed attempts before territory becomes purchasable
 }
 
 export const PLAYER_COLORS = ["red", "blue", "green", "purple", "orange", "pink", "yellow", "cyan"]
