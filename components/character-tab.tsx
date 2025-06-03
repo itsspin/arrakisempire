@@ -134,10 +134,17 @@ export function CharacterTab({
               Reach new heights of power by prestiging! Reset your progress for a significant bonus to future gains.
             </p>
             <button
-              onClick={onOpenPrestigeModal}
-              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-md transition duration-150 ease-in-out"
+              onClick={player.level >= 20 ? onOpenPrestigeModal : undefined}
+              disabled={player.level < 20}
+              className={`w-full py-2 px-4 font-semibold rounded-md transition duration-150 ease-in-out ${
+                player.level >= 20
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : "bg-stone-500 text-white cursor-not-allowed"
+              }`}
             >
-              Ascend to Prestige {player.prestigeLevel + 1}
+              {player.level >= 20
+                ? `Ascend to Prestige ${player.prestigeLevel + 1}`
+                : "Reach Level 20 to Prestige"}
             </button>
           </div>
         </div>
