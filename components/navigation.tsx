@@ -15,8 +15,8 @@ const tabs = [
 
 export function Navigation({ currentTab, onTabChange }: NavigationProps) {
   return (
-    <nav className="bg-stone-800 border-b border-stone-600 px-6 fixed top-[88px] left-0 right-0 z-100">
-      <div className="flex space-x-2">
+    <nav className="bg-stone-800 border-b border-stone-600 px-6 fixed top-[88px] left-0 right-0 z-100 overflow-x-auto">
+      <div className="flex space-x-2 whitespace-nowrap">
         {tabs.map((tab) => (
           <button
             key={tab.id}
