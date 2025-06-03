@@ -1361,6 +1361,43 @@ export default function ArrakisGamePage() {
               }
               newWorldEvents.push(newEvent)
               addNotification(`New Event: ${newEvent.name}! - ${newEvent.description}`, "warning")
+
+              if (newEvent.effect === "territory_loss" && newEvent.effectValue) {
+                const ownedKeys = Object.keys(newMap.territories).filter(
+                  (tKey) => newMap.territories[tKey].ownerId,
+                )
+                const removeCount = Math.max(
+                  1,
+                  Math.floor(ownedKeys.length * newEvent.effectValue),
+                )
+                for (let i = 0; i < removeCount && ownedKeys.length > 0; i++) {
+                  const idx = getRandomInt(0, ownedKeys.length - 1)
+                  const terrKey = ownedKeys.splice(idx, 1)[0]
+                  const terr = newMap.territories[terrKey]
+                  const ownerId = terr.ownerId
+                  if (ownerId) {
+                    if (ownerId === newPlayer.id) {
+                      newPlayer.territories = newPlayer.territories.filter(
+                        (t) => t.id !== terr.id,
+                      )
+                      addNotification(
+                        `Sandstorm reclaimed ${terr.name || terrKey}!`,
+                        "warning",
+                      )
+                    } else if (newOnlinePlayers[ownerId]) {
+                      newOnlinePlayers[ownerId].territories = newOnlinePlayers[ownerId].territories.filter(
+                        (t) => t.id !== terr.id,
+                      )
+                    }
+                    newMap.territories[terrKey] = {
+                      ...terr,
+                      ownerId: null,
+                      ownerName: undefined,
+                      ownerColor: undefined,
+                    }
+                  }
+                }
+              }
               if (newEvent.rewards) {
                 // Apply immediate rewards
                 if (newEvent.rewards.spice) newResources.spice += newEvent.rewards.spice

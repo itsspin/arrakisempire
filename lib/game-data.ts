@@ -342,6 +342,16 @@ export const STATIC_DATA = {
       duration: 300000,
       type: "economy",
     },
+    {
+      name: "Great Sandstorm",
+      description:
+        "Blinding sandstorms ravage Arrakis, stripping control from many territories!",
+      icon: "🌬️",
+      effect: "territory_loss",
+      effectValue: 0.1, // 10% of all owned territories become neutral
+      duration: 180000,
+      type: "hazard",
+    },
   ],
   WORLD_EVENT_CONFIG: {
     maxActiveEvents: 3, // Max number of non-chained world events active at once
