@@ -24,6 +24,7 @@ export const CONFIG = {
   FLEE_CHANCE: 0.6, // 60% chance to flee successfully
   SPICE_SELL_COST: 50, // Spice required to sell
   SPICE_SELL_YIELD: 50, // Solari gained from selling spice
+  GEAR_SELL_BASE: 20, // Base Solari gained per rarity level when selling gear
   MINE_PLASTEEL_ENERGY_COST: 10, // Energy cost to mine plasteel
   MINE_PLASTEEL_YIELD: 5, // Plasteel gained
   COLLECT_WATER_ENERGY_COST: 5, // Energy cost to collect water

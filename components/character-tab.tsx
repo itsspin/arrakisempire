@@ -8,6 +8,7 @@ interface CharacterTabProps {
   equipment: Equipment
   inventory: (Item | null)[]
   onEquipItem: (item: Item, inventoryIndex: number) => void
+  onSellItem: (item: Item, inventoryIndex: number) => void
   onOpenPrestigeModal: () => void // New prop
   onActivateAbility: (ability: Ability) => void // New prop
   abilityCooldowns: Record<string, number> // New prop
@@ -18,6 +19,7 @@ export function CharacterTab({
   equipment,
   inventory,
   onEquipItem,
+  onSellItem,
   onOpenPrestigeModal,
   onActivateAbility,
   abilityCooldowns,
@@ -72,12 +74,17 @@ export function CharacterTab({
                 title={item ? `${item.name}\n${item.description}` : "Empty Slot"}
                 className={`inventory-slot ${item ? "cursor-pointer hover:border-amber-500" : "opacity-50"}`}
                 onClick={() => item && onEquipItem(item, index)}
+                onContextMenu={(e) => {
+                  if (!item) return
+                  e.preventDefault()
+                  onSellItem(item, index)
+                }}
               >
                 {item?.icon || ""}
               </div>
             ))}
           </div>
-          <p className="text-xs text-stone-400 mt-3">Click an item in inventory to equip it.</p>
+          <p className="text-xs text-stone-400 mt-3">Click an item to equip. Right-click to sell.</p>
         </div>
 
         {/* Character Statistics & Abilities */}
