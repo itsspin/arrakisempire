@@ -1575,8 +1575,15 @@ export default function ArrakisGamePage() {
           else targetEnemyLevel = Math.max(1, player.level - getRandomInt(0, 1))
 
           const levelDifference = targetEnemyLevel - originalEnemyData.level
-          // Ensure scalingMultiplier is always positive
-          const scalingMultiplier = Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR)
+          // Ensure scalingMultiplier is always positive and adjust by player gear
+          const gearPower =
+            (player.equipment?.weapon?.attack || 0) +
+            (player.equipment?.armor?.defense || 0) +
+            (player.equipment?.accessory?.attack || 0) +
+            (player.equipment?.accessory?.defense || 0)
+          const gearMultiplier = 1 + gearPower * CONFIG.GEAR_SCALING_FACTOR
+          const scalingMultiplier =
+            Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR) * gearMultiplier
 
           const scaledEnemy: Enemy = {
             ...enemyOnCell,
