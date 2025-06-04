@@ -130,52 +130,6 @@ const generateMockEnemies = (): Record<string, Enemy> => {
   return enemies
 }
 
-const generateMockResources = (): Record<string, ResourceNode> => {
-  // Unchanged
-  const resources: Record<string, ResourceNode> = {}
-  const resourceTypes = ["spice", "water", "plasteel"]
-  const numResources = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.02)
-  for (let i = 0; i < numResources; i++) {
-    const { x, y } = getRandomMapCoords()
-    const key = `${x},${y}`
-    if (resources[key]) continue
-    const type = resourceTypes[getRandomInt(0, resourceTypes.length - 1)]
-    resources[key] = {
-      id: `res_${x}_${y}`,
-      type,
-      amount: Math.floor(Math.random() * 50) + 10,
-      position: { x, y },
-      icon: type === "spice" ? "✨" : type === "water" ? "💧" : "🔧",
-    }
-  }
-  return resources
-}
-
-const generateMockItems = (): Record<string, Item> => {
-  // Unchanged
-  const items: Record<string, Item> = {}
-  const itemKeys = Object.keys(STATIC_DATA.ITEMS) as Array<keyof typeof STATIC_DATA.ITEMS>
-  const numItems = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.005)
-  for (let i = 0; i < numItems; i++) {
-    const { x, y } = getRandomMapCoords()
-    const key = `${x},${y}`
-    if (items[key]) continue
-    const itemTypeKey = itemKeys[getRandomInt(0, itemKeys.length - 1)]
-    const itemData = STATIC_DATA.ITEMS[itemTypeKey]
-    items[key] = {
-      id: `item_${x}_${y}`,
-      name: itemData.name,
-      icon: itemData.icon,
-      type: itemData.type,
-      rarity: itemData.rarity,
-      description: itemData.description,
-      attack: itemData.attack ?? 0,
-      defense: itemData.defense ?? 0,
-      special: itemData.special ?? null,
-    }
-  }
-  return items
-}
 
 const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => {
   // Unchanged
