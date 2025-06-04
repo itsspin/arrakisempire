@@ -12,6 +12,7 @@ const tabs = [
   { id: "empire", label: "🏗️ Empire" },
   { id: "multiplayer", label: "🌍 Multiplayer" },
   { id: "updates", label: "📰 Updates" }, // New tab
+  { id: "wishlist", label: "🌠 Wishlist" },
 ]
 
 export function Navigation({ currentTab, onTabChange }: NavigationProps) {

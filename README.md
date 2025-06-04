@@ -61,6 +61,10 @@ Recent additions to **Arrakis Spice Empire** include:
 - Expanded equipment pool with new items ranging from common to mythic rarity.
 - Introduced mythic rarity gear with drop rates over 200x rarer than legendary.
 
+## Wishlist
+
+Have an idea for a new feature? Open the **Wishlist** tab in game and submit a simple gameplay request.
+
 ## How It Works
 
 1. Create and modify your project using [v0.dev](https://v0.dev)

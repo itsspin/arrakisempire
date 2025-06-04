@@ -28,6 +28,7 @@ import { AbilitySelectionModal } from "@/components/modals/ability-selection-mod
 import { TradePanel } from "@/components/trade-panel"
 import { TradingModal } from "@/components/modals/trading-modal"
 import { UpdatesTab } from "@/components/updates-tab"
+import { WishlistTab } from "@/components/wishlist-tab"
 import { BountyBoard } from "@/components/bounty-board"
 import { Slider } from "@/components/ui/slider"
 import { PauseModal } from "@/components/modals/pause-modal"
@@ -52,7 +53,14 @@ import type {
 import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS, CRAFTING_RECIPES } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  onSnapshot,
+} from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { LoginForm } from "@/components/login-form"
 
@@ -708,6 +716,30 @@ export default function ArrakisGamePage() {
     return () => clearInterval(interval)
   }, [user, gameState.gameInitialized]) // Added user and gameState.gameInitialized to dependencies
 
+  // Listen for bounty changes on the current user
+  useEffect(() => {
+    if (!user) return
+    const playerRef = doc(db, "players", user.uid)
+    const unsub = onSnapshot(playerRef, (snap) => {
+      if (!snap.exists()) return
+      const data = snap.data() as GameState
+      setGameState((prev) => {
+        const newBounty = data.player?.bounty || 0
+        if (newBounty > prev.player.bounty) {
+          addNotification(
+            `A bounty has been placed on you! Current bounty: ${newBounty} Solari`,
+            "warning",
+          )
+        }
+        if (newBounty !== prev.player.bounty) {
+          return { ...prev, player: { ...prev.player, bounty: newBounty } }
+        }
+        return prev
+      })
+    })
+    return () => unsub()
+  }, [user, addNotification])
+
   const handleSendMessage = useCallback((message: string) => {
     setGameState((prev) => {
       const newMessages = [
@@ -852,8 +884,9 @@ export default function ArrakisGamePage() {
                 itemData.rarity === "mythic" ? "mythic" : itemData.rarity === "legendary" ? "legendary" : "success"
               addNotification(`You found a ${itemData.icon} ${itemData.name}!`, noticeType as any)
               addNotification(`You found a ${itemData.icon} ${itemData.name}!`, "success")
-              if (itemData.rarity === "epic" || itemData.rarity === "legendary") {
-                addWorldChatMessage(`${newPlayer.name} found an ${itemData.rarity} ${itemData.name}!`)
+              if (itemData.rarity === "legendary" || itemData.rarity === "mythic") {
+                const rarityLabel = itemData.rarity.toUpperCase()
+                addWorldChatMessage(`🎉 ${newPlayer.name} discovered a ${rarityLabel} ${itemData.name}! 🎉`)
               }
             } else {
               addNotification(`Inventory full! Could not pick up ${itemData.name}.`, "warning")
@@ -2514,7 +2547,7 @@ export default function ArrakisGamePage() {
   )
 
   const handleAddBounty = useCallback(
-    (targetId: string) => {
+    async (targetId: string) => {
       setGameState((prev) => {
         const amount = CONFIG.BOUNTY_INCREMENT
         const newResources = { ...prev.resources }
@@ -2527,6 +2560,27 @@ export default function ArrakisGamePage() {
         newBounties[targetId] = (newBounties[targetId] || 0) + amount
         return { ...prev, resources: newResources, bounties: newBounties }
       })
+
+      try {
+        const targetRef = doc(db, "players", targetId)
+        const snap = await getDoc(targetRef)
+        if (snap.exists()) {
+          const data = snap.data() as GameState
+          const newBounty = (data.player?.bounty || 0) + CONFIG.BOUNTY_INCREMENT
+          const notification = {
+            id: Date.now().toString(),
+            message: `${gameStateRef.current.player.name} placed a ${CONFIG.BOUNTY_INCREMENT} Solari bounty on you!`,
+            type: "warning" as const,
+          }
+          await setDoc(targetRef, {
+            ...data,
+            player: { ...data.player, bounty: newBounty },
+            notifications: [...(data.notifications || []), notification],
+          })
+        }
+      } catch (err) {
+        console.error("Failed to update bounty", err)
+      }
     },
     [addNotification],
   )
@@ -3055,6 +3109,7 @@ export default function ArrakisGamePage() {
             </div>
           )}
           {gameState.currentTab === "updates" && <UpdatesTab />}
+          {gameState.currentTab === "wishlist" && <WishlistTab />}
         </div>
       </main>
 
