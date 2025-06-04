@@ -52,7 +52,14 @@ import type {
 import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS, CRAFTING_RECIPES } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  onSnapshot,
+} from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { LoginForm } from "@/components/login-form"
 
@@ -707,6 +714,30 @@ export default function ArrakisGamePage() {
     const interval = setInterval(updateLeaderboard, 30000)
     return () => clearInterval(interval)
   }, [user, gameState.gameInitialized]) // Added user and gameState.gameInitialized to dependencies
+
+  // Listen for bounty changes on the current user
+  useEffect(() => {
+    if (!user) return
+    const playerRef = doc(db, "players", user.uid)
+    const unsub = onSnapshot(playerRef, (snap) => {
+      if (!snap.exists()) return
+      const data = snap.data() as GameState
+      setGameState((prev) => {
+        const newBounty = data.player?.bounty || 0
+        if (newBounty > prev.player.bounty) {
+          addNotification(
+            `A bounty has been placed on you! Current bounty: ${newBounty} Solari`,
+            "warning",
+          )
+        }
+        if (newBounty !== prev.player.bounty) {
+          return { ...prev, player: { ...prev.player, bounty: newBounty } }
+        }
+        return prev
+      })
+    })
+    return () => unsub()
+  }, [user, addNotification])
 
   const handleSendMessage = useCallback((message: string) => {
     setGameState((prev) => {
@@ -2514,7 +2545,7 @@ export default function ArrakisGamePage() {
   )
 
   const handleAddBounty = useCallback(
-    (targetId: string) => {
+    async (targetId: string) => {
       setGameState((prev) => {
         const amount = CONFIG.BOUNTY_INCREMENT
         const newResources = { ...prev.resources }
@@ -2527,6 +2558,27 @@ export default function ArrakisGamePage() {
         newBounties[targetId] = (newBounties[targetId] || 0) + amount
         return { ...prev, resources: newResources, bounties: newBounties }
       })
+
+      try {
+        const targetRef = doc(db, "players", targetId)
+        const snap = await getDoc(targetRef)
+        if (snap.exists()) {
+          const data = snap.data() as GameState
+          const newBounty = (data.player?.bounty || 0) + CONFIG.BOUNTY_INCREMENT
+          const notification = {
+            id: Date.now().toString(),
+            message: `${gameStateRef.current.player.name} placed a ${CONFIG.BOUNTY_INCREMENT} Solari bounty on you!`,
+            type: "warning" as const,
+          }
+          await setDoc(targetRef, {
+            ...data,
+            player: { ...data.player, bounty: newBounty },
+            notifications: [...(data.notifications || []), notification],
+          })
+        }
+      } catch (err) {
+        console.error("Failed to update bounty", err)
+      }
     },
     [addNotification],
   )
