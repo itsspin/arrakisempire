@@ -884,8 +884,9 @@ export default function ArrakisGamePage() {
                 itemData.rarity === "mythic" ? "mythic" : itemData.rarity === "legendary" ? "legendary" : "success"
               addNotification(`You found a ${itemData.icon} ${itemData.name}!`, noticeType as any)
               addNotification(`You found a ${itemData.icon} ${itemData.name}!`, "success")
-              if (itemData.rarity === "epic" || itemData.rarity === "legendary") {
-                addWorldChatMessage(`${newPlayer.name} found an ${itemData.rarity} ${itemData.name}!`)
+              if (itemData.rarity === "legendary" || itemData.rarity === "mythic") {
+                const rarityLabel = itemData.rarity.toUpperCase()
+                addWorldChatMessage(`🎉 ${newPlayer.name} discovered a ${rarityLabel} ${itemData.name}! 🎉`)
               }
             } else {
               addNotification(`Inventory full! Could not pick up ${itemData.name}.`, "warning")
