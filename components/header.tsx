@@ -5,10 +5,12 @@ import { STATIC_DATA } from "@/lib/game-data"
 
 interface HeaderProps {
   player: Player
+  isPaused: boolean
+  onTogglePause: () => void
   // Removed onTradeClick, onOpenHousesModal, onOpenWorldEventsModal
 }
 
-export function Header({ player }: HeaderProps) {
+export function Header({ player, isPaused, onTogglePause }: HeaderProps) {
   const house = player.house ? STATIC_DATA.HOUSES[player.house] : null
 
   return (
@@ -33,6 +35,12 @@ export function Header({ player }: HeaderProps) {
             <span className="text-stone-400">Prestige:</span>
             <span className="font-bold text-purple-400 prestige-glow ml-1">{player.prestigeLevel}</span>
           </div>
+          <button
+            onClick={onTogglePause}
+            className="action-button px-2 py-1 text-xs md:text-sm"
+          >
+            {isPaused ? "Resume" : "Pause"}
+          </button>
           {/* Removed Trade, Houses, Events buttons - now in Multiplayer tab */}
         </div>
       </div>

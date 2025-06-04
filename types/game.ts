@@ -238,6 +238,10 @@ export interface GameState {
   lastWorldEventProcessingTime?: number
   // NEW: Track which territory is being contested in combat
   capturingTerritoryId?: string | null
+  // NEW: Pause state
+  isPaused: boolean
+  // NEW: Timestamp when sandworm will attack if player stays idle
+  sandwormAttackTime?: number | null
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"
