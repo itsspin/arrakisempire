@@ -215,6 +215,8 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     unlockedAbilities: [],
     activeAbility: null,
     isDefending: false,
+    xpBuffMultiplier: 1,
+    xpBuffExpires: null,
   }
 }
 
@@ -679,10 +681,14 @@ export default function ArrakisGamePage() {
         territories: { ...mapState.territories },
       } // Be careful with deep copies if needed
       const updatedInventory = [...currentFullGameState.inventory] // Use inventory from the ref
+      const now = Date.now()
 
       if (result === "win") {
         let xpGained = enemyInstance.xp
         xpGained = Math.floor(xpGained * newPlayer.globalGainMultiplier)
+        if (newPlayer.xpBuffExpires && newPlayer.xpBuffExpires > now) {
+          xpGained = Math.floor(xpGained * (newPlayer.xpBuffMultiplier || 1))
+        }
         if (newPlayer.house === "atreides") {
           xpGained = Math.floor(xpGained * 1.25)
         }
@@ -737,6 +743,11 @@ export default function ArrakisGamePage() {
         if (newMap.enemies[enemyKey]) {
           delete newMap.enemies[enemyKey]
         }
+        if (enemyInstance.type === "player") {
+          newPlayer.xpBuffMultiplier = 1.5
+          newPlayer.xpBuffExpires = now + 60000
+          addNotification("XP Buff! +50% for 1 minute", "legendary")
+        }
         if (currentFullGameState.capturingTerritoryId) {
           const terrKey = currentFullGameState.capturingTerritoryId
           const terr = newMap.territories[terrKey]
@@ -758,6 +769,11 @@ export default function ArrakisGamePage() {
               )
             }
             addNotification(`You captured ${terr.name || terrKey}!`, "success")
+            if (oldOwner && oldOwner !== newPlayer.id && enemyInstance.type !== "player") {
+              newPlayer.xpBuffMultiplier = 1.5
+              newPlayer.xpBuffExpires = now + 60000
+              addNotification("XP Buff! +50% for 1 minute", "legendary")
+            }
           }
         }
 
@@ -1312,6 +1328,12 @@ export default function ArrakisGamePage() {
         const newOnlinePlayers = JSON.parse(JSON.stringify(prev.onlinePlayers)) // Deep copy for AI modifications
         let sandwormAttackTime = prev.sandwormAttackTime
 
+        if (newPlayer.xpBuffExpires && now >= newPlayer.xpBuffExpires) {
+          newPlayer.xpBuffMultiplier = 1
+          newPlayer.xpBuffExpires = null
+          newNotifications.push({ id: now.toString(), message: "XP Buff expired", type: "info" })
+        }
+
         // --- 1. Player Stat Regen & Income (mostly existing logic) ---
         if (now - prev.lastEnergyRegen >= CONFIG.ENERGY_REGEN_INTERVAL) {
           let energyRegenRate = newPlayer.energyProductionRate
@@ -1526,8 +1548,17 @@ export default function ArrakisGamePage() {
                 // Apply immediate rewards
                 if (newEvent.rewards.spice) newResources.spice += newEvent.rewards.spice
                 if (newEvent.rewards.solari) newResources.solari += newEvent.rewards.solari
-                // ... etc for all resources & xp
-                if (newEvent.rewards.xp) newPlayer.experience += newEvent.rewards.xp // (Handle level up if necessary)
+                if (newEvent.rewards.xp) {
+                  let eventXP = newEvent.rewards.xp
+                  eventXP = Math.floor(eventXP * newPlayer.globalGainMultiplier)
+                  if (newPlayer.xpBuffExpires && newPlayer.xpBuffExpires > now) {
+                    eventXP = Math.floor(eventXP * (newPlayer.xpBuffMultiplier || 1))
+                  }
+                  if (newPlayer.house === "atreides") {
+                    eventXP = Math.floor(eventXP * 1.25)
+                  }
+                  newPlayer.experience += eventXP
+                }
                 addNotification("You received event rewards!", "success")
               }
             }
