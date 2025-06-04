@@ -16,6 +16,7 @@ interface MapGridProps {
   zoom?: number
   onZoomChange?: (zoom: number) => void
   trackingTarget?: { x: number; y: number } | null
+  seekerLaunchTime?: number
 }
 
 export function MapGrid({
@@ -27,10 +28,18 @@ export function MapGrid({
   zoom = 1,
   onZoomChange,
   trackingTarget = null,
+  seekerLaunchTime = 0,
 }: MapGridProps) {
   const isMobile = useIsMobile()
   const gridRef = React.useRef<HTMLDivElement>(null)
   const playerCellRef = React.useRef<HTMLDivElement>(null)
+  const [launchEffects, setLaunchEffects] = React.useState<{
+    id: number
+    left: number
+    top: number
+    dx: number
+    dy: number
+  }[]>([])
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
 
@@ -44,6 +53,37 @@ export function MapGrid({
       grid.scrollTo({ left, top })
     }
   }, [playerX, playerY, zoom, isMobile])
+
+  React.useEffect(() => {
+    if (!seekerLaunchTime) return
+    const grid = gridRef.current
+    const playerCell = playerCellRef.current
+    if (!grid || !playerCell) return
+    const gridRect = grid.getBoundingClientRect()
+    const playerRect = playerCell.getBoundingClientRect()
+    const left = playerRect.left - gridRect.left + playerRect.width / 2
+    const top = playerRect.top - gridRect.top + playerRect.height / 2
+    const newEffects = Array.from({ length: 3 }).map((_, i) => ({
+      id: seekerLaunchTime + i,
+      left,
+      top,
+      dx: (Math.random() - 0.5) * 120,
+      dy: (Math.random() - 1.2) * 120,
+    }))
+    setLaunchEffects((prev) => [...prev, ...newEffects])
+  }, [seekerLaunchTime])
+
+  React.useEffect(() => {
+    if (launchEffects.length === 0) return
+    const timers = launchEffects.map((eff) =>
+      setTimeout(() => {
+        setLaunchEffects((prev) => prev.filter((e) => e.id !== eff.id))
+      }, 1000),
+    )
+    return () => {
+      timers.forEach((t) => clearTimeout(t))
+    }
+  }, [launchEffects])
 
   const arrow = React.useMemo(() => {
     if (!trackingTarget) return ""
@@ -203,6 +243,20 @@ export function MapGrid({
   return (
     <div className="relative">
       {arrow && <div className="tracking-arrow">{arrow}</div>}
+      {launchEffects.map((eff) => (
+        <span
+          key={eff.id}
+          className="seeker-launch-effect"
+          style={{
+            left: eff.left,
+            top: eff.top,
+            ['--dx' as any]: `${eff.dx}px`,
+            ['--dy' as any]: `${eff.dy}px`,
+          }}
+        >
+          🛰️
+        </span>
+      ))}
       <div ref={gridRef} className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
         {cells}
       </div>

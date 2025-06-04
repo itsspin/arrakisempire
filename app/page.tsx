@@ -457,6 +457,7 @@ export default function ArrakisGamePage() {
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
   const [zoom, setZoom] = useState(1.2)
   const [user, setUser] = useState(() => auth.currentUser)
+  const [seekerLaunchVisualTime, setSeekerLaunchVisualTime] = useState(0)
   const isMobile = useIsMobile()
 
   // All hooks must be declared unconditionally at the top level
@@ -2514,6 +2515,7 @@ export default function ArrakisGamePage() {
         lastSeekerLaunchTime: now,
       }
     })
+    setSeekerLaunchVisualTime(Date.now())
   }, [addNotification])
 
   const handleTrackPlayer = useCallback(
@@ -2984,6 +2986,7 @@ export default function ArrakisGamePage() {
                       ? gameState.onlinePlayers[gameState.trackingTargetId].position
                       : null
                   }
+                  seekerLaunchTime={seekerLaunchVisualTime}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
