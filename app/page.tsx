@@ -2106,7 +2106,10 @@ export default function ArrakisGamePage() {
             (player.equipment?.accessory?.attack || 0) +
             (player.equipment?.accessory?.defense || 0)
           const gearMultiplier = 1 + gearPower * CONFIG.GEAR_SCALING_FACTOR
-          const baseScaling = Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR)
+          const scalingFactor = originalEnemyData.special
+            ? CONFIG.SPECIAL_ENEMY_SCALING_FACTOR
+            : CONFIG.NORMAL_ENEMY_SCALING_FACTOR
+          const baseScaling = Math.max(0.1, 1 + levelDifference * scalingFactor)
           const specialBonus = originalEnemyData.special ? 1 + CONFIG.SPECIAL_ENEMY_SCALING_BONUS : 1
           const scalingMultiplier = baseScaling * gearMultiplier * specialBonus
 
