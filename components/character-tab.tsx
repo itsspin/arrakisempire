@@ -24,7 +24,9 @@ export function CharacterTab({
   onActivateAbility,
   abilityCooldowns,
 }: CharacterTabProps) {
-  const totalXPGainBonus = (player.globalGainMultiplier - 1 + (player.house === "atreides" ? 0.25 : 0)) * 100
+  const xpBuff = player.xpBuffExpires && player.xpBuffExpires > Date.now() ? player.xpBuffMultiplier || 1 : 1
+  const totalXPGainBonus =
+    (player.globalGainMultiplier * xpBuff * (player.house === "atreides" ? 1.25 : 1) - 1) * 100
 
   const stats = [
     { label: "Attack Power", value: player.attack, color: "text-red-400" },

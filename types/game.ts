@@ -34,6 +34,8 @@ export interface Player {
   unlockedAbilities: Ability[]
   activeAbility: Ability | null
   isDefending: boolean
+  xpBuffMultiplier?: number
+  xpBuffExpires?: number | null
   // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
   // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
   equipment?: Equipment // Added for AI ranking
@@ -192,6 +194,15 @@ export interface ChatMessage {
   message: string
 }
 
+export interface TradeOffer {
+  id: string
+  sellerId: string | null
+  sellerName: string
+  sellerColor: string
+  item: Item
+  price: number
+}
+
 export interface Ability {
   id: string
   name: string
@@ -230,7 +241,7 @@ export interface GameState {
   // onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>> // Old
   onlinePlayers: Record<string, AIPlayer> // NEW: AIs have their own full Player state and Resources
   worldEvents: WorldEvent[]
-  tradeOffers: any[]
+  tradeOffers: TradeOffer[]
   map: {
     enemies: Record<string, Enemy>
     resources: Record<string, ResourceNode>

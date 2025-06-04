@@ -5,9 +5,10 @@ import type { Player, Resources } from "@/types/game"
 interface TradePanelProps {
   player: Player
   resources: Resources
+  onOpenTrading: () => void
 }
 
-export function TradePanel({ player, resources }: TradePanelProps) {
+export function TradePanel({ player, resources, onOpenTrading }: TradePanelProps) {
   return (
     <div className="bg-stone-800 p-6 rounded-lg border border-stone-600">
       <h3 className="text-xl font-semibold mb-4 text-amber-300">🤝 Interstellar Trade Network</h3>
@@ -51,10 +52,10 @@ export function TradePanel({ player, resources }: TradePanelProps) {
         </div>
       </div>
       <button
-        className="w-full mt-6 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition duration-150 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
-        disabled
+        className="w-full mt-6 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition duration-150 ease-in-out"
+        onClick={onOpenTrading}
       >
-        Browse Trade Offers (Coming Soon)
+        Browse Trade Offers
       </button>
     </div>
   )
