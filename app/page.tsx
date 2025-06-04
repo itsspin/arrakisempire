@@ -33,6 +33,7 @@ import { BountyBoard } from "@/components/bounty-board"
 import { Slider } from "@/components/ui/slider"
 import { PauseModal } from "@/components/modals/pause-modal"
 import { SandwormWarning } from "@/components/sandworm-warning"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import type {
   GameState,
@@ -456,6 +457,7 @@ export default function ArrakisGamePage() {
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
   const [zoom, setZoom] = useState(1.2)
   const [user, setUser] = useState(() => auth.currentUser)
+  const isMobile = useIsMobile()
 
   // All hooks must be declared unconditionally at the top level
   useEffect(() => {
@@ -2943,8 +2945,8 @@ export default function ArrakisGamePage() {
                   </div>
                 </div>
                 <div className="text-sm text-stone-400 mb-4 p-3 bg-stone-800 rounded-lg border border-stone-600 text-center">
-                  <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys to move • Click cells
-                  to interact/purchase territory.
+                  <span className="font-semibold text-amber-400">Controls:</span>
+                  {isMobile ? " Tap a nearby tile to move • Tap cells to interact or purchase territory." : " WASD/Arrow Keys to move • Click cells to interact/purchase territory."}
                 </div>
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-stone-300 text-sm">Zoom:</span>
