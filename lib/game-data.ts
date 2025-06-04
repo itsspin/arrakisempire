@@ -23,6 +23,30 @@ export const STATIC_DATA = {
     },
   },
   ENEMIES: {
+    desertScavenger: {
+      name: "Desert Scavenger",
+      icon: "🦂",
+      health: 40,
+      attack: 8,
+      defense: 5,
+      xp: 40,
+      loot: { solari: 20, spice: 5, water: 8 },
+      level: 1,
+      spawnChance: 0.6,
+      description: "Opportunistic wanderer searching the dunes for valuables.",
+    },
+    spiceBandit: {
+      name: "Spice Bandit",
+      icon: "🥾",
+      health: 60,
+      attack: 12,
+      defense: 7,
+      xp: 60,
+      loot: { solari: 45, spice: 15 },
+      level: 2,
+      spawnChance: 0.25,
+      description: "Thief looking to steal freshly harvested spice.",
+    },
     sandRaider: {
       name: "Fremen Raider",
       icon: "🏹",
@@ -74,26 +98,26 @@ export const STATIC_DATA = {
     guildNavigator: {
       name: "Guild Navigator",
       icon: "👁️",
-      health: 250, // Increased from 190
-      attack: 24,
-      defense: 20,
-      xp: 250,
+      health: 300,
+      attack: 32,
+      defense: 26,
+      xp: 300,
       loot: { melange: 10, rareMaterials: 10, solari: 250 },
       level: 7, // Base level
-      spawnChance: 0.008, // Very rare
+      spawnChance: 0.004,
       special: true,
       description: "Mutated spice addict with prescient abilities.",
     },
     mentat: {
       name: "Corrupted Mentat",
       icon: "🧠",
-      health: 220, // Increased from 170
-      attack: 32,
-      defense: 12,
-      xp: 220,
+      health: 260,
+      attack: 40,
+      defense: 18,
+      xp: 260,
       loot: { solari: 180, melange: 6, rareMaterials: 7 },
       level: 6, // Base level
-      spawnChance: 0.008, // Very rare
+      spawnChance: 0.004,
       special: true,
       description: "Human computer driven mad by forbidden calculations.",
     },
@@ -124,7 +148,7 @@ export const STATIC_DATA = {
       description: "The Baron himself. Master of schemes.",
     },
     sandworm: {
-      name: "Shai-Hulud",
+      name: "Infant Sandworm",
       icon: "🐛",
       health: 2000, // Increased from 1400
       attack: 110,
@@ -140,14 +164,14 @@ export const STATIC_DATA = {
     reverendMother: {
       name: "Reverend Mother Mohiam",
       icon: "🧙",
-      health: 800,
-      attack: 60,
-      defense: 30,
-      xp: 700,
+      health: 900,
+      attack: 75,
+      defense: 40,
+      xp: 800,
       loot: { melange: 50, rareMaterials: 25, solari: 2000 },
       boss: true,
       level: 15,
-      spawnChance: 0.0015, // Very rare
+      spawnChance: 0.0008,
       special: true,
       description: "Bene Gesserit matriarch wielding the Voice.",
     },
@@ -335,6 +359,26 @@ export const STATIC_DATA = {
       description: "Ancient artifact of immense power.",
       dropChance: 0.005,
     },
+    healingStim: {
+      name: "Healing Stim",
+      icon: "💊",
+      type: "consumable",
+      rarity: "common",
+      description: "Restores 50 health when used.",
+      effectType: "heal",
+      effectValue: 50,
+      dropChance: 0,
+    },
+    battleStim: {
+      name: "Battle Stim",
+      icon: "⚔️",
+      type: "consumable",
+      rarity: "uncommon",
+      description: "Boosts attack by 10 for one combat.",
+      effectType: "attack_boost",
+      effectValue: 10,
+      dropChance: 0,
+    },
   },
   WORLD_EVENTS: [
     {
@@ -386,10 +430,10 @@ export const STATIC_DATA = {
       effect: "sandworm_attack",
       duration: 60000, // Short duration before attack
       type: "hazard",
-      triggersNext: "Shai-Hulud Attack", // Triggers the actual attack event
+      triggersNext: "Infant Sandworm Attack", // Triggers the actual attack event
     },
     {
-      name: "Shai-Hulud Attack",
+      name: "Infant Sandworm Attack",
       description: "A sandworm attacks a random territory!",
       icon: "💥",
       effect: "territory_destruction", // New effect type

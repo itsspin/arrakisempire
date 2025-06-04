@@ -22,9 +22,10 @@ export const CONFIG = {
   COMBAT_TURN_DELAY: 1500, // Delay between turns in combat (ms) - This is now just a visual delay for enemy action
   // Removed COMBAT_MINIGAME_DURATION, COMBAT_TURN_DURATION
   // Slightly higher scaling so enemies keep up with player progression
-  ENEMY_SCALING_FACTOR: 0.2, // 20% stat increase per level difference
+  NORMAL_ENEMY_SCALING_FACTOR: 0.15, // Scaling for normal enemies
+  SPECIAL_ENEMY_SCALING_FACTOR: 0.25, // Higher scaling for special enemies
   GEAR_SCALING_FACTOR: 0.015, // Additional scaling per gear power point
-  SPECIAL_ENEMY_SCALING_BONUS: 0.25, // Extra scaling for special enemies
+  SPECIAL_ENEMY_SCALING_BONUS: 0.4, // Extra scaling multiplier for special enemies
   FLEE_CHANCE: 0.6, // 60% chance to flee successfully
   SPICE_SELL_COST: 50, // Spice required to sell
   SPICE_SELL_YIELD: 50, // Solari gained from selling spice
@@ -87,4 +88,10 @@ export const RARITY_SCORES = {
   rare: 3,
   epic: 4,
   legendary: 5,
+}
+
+export const CRAFTING_RECIPES = {
+  healingStim: { plasteel: 10, rareMaterials: 2, melange: 1 },
+  battleStim: { plasteel: 15, rareMaterials: 3, melange: 2 },
+}
 };

@@ -35,6 +35,8 @@ export interface Player {
   unlockedAbilities: Ability[]
   activeAbility: Ability | null
   isDefending: boolean
+  xpBuffMultiplier?: number
+  xpBuffExpires?: number | null
   // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
   // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
   equipment?: Equipment // Added for AI ranking
@@ -66,6 +68,8 @@ export interface Item {
   description: string
   dropChance?: number
   special?: string | null
+  effectType?: "heal" | "attack_boost"
+  effectValue?: number
 }
 
 export interface MapElement {
@@ -175,7 +179,7 @@ export interface WorldEvent extends MapElement {
   duration?: number
   endTime?: number
   type?: "economy" | "hazard" | "diplomacy" | "political" // For categorization
-  // NEW: For event chaining (e.g. Wormsign -> ShaiHuludAttack)
+  // NEW: For event chaining (e.g. Wormsign -> InfantSandwormAttack)
   triggersNext?: string // Key of the next event to trigger
   isChainedEvent?: boolean // If this event was triggered by another
   // NEW: For Sandworm attack target
@@ -212,6 +216,15 @@ export interface Ability {
   duration: number
   effectType: "attack_boost" | "defense_boost" | "crit_boost" | "dodge_boost" | "health_regen" | "energy_regen" | "stun"
   effectValue: number
+}
+
+export interface Quest {
+  id: string
+  description: string
+  type: "kill" | "territory" | "move"
+  goal: number
+  progress: number
+  completed: boolean
 }
 
 // Modified onlinePlayers to include full Player type and their own Resources
@@ -263,6 +276,8 @@ export interface GameState {
   lastSeekerLaunchTime?: number
   bounties: Record<string, number>
   trackingTargetId?: string | null
+  quests: Quest[]
+  completedQuests: Quest[]
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"

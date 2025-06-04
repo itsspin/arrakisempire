@@ -96,7 +96,9 @@ export function MapGrid({
       // Enemies
       const enemy = mapData.enemies[key]
       if (enemy && cellContent === "") {
-        cellClass += enemy.boss ? " map-cell-boss" : enemy.special ? " map-cell-special-enemy" : " map-cell-enemy"
+        if (enemy.special) cellClass += " map-cell-special-enemy"
+        else if (enemy.boss) cellClass += " map-cell-boss"
+        else cellClass += " map-cell-enemy"
         cellContent = enemy.icon
         cellTitle = `${enemy.name} (Lv.${enemy.level})`
         hasBackground = true
