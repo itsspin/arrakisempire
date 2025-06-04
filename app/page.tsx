@@ -461,7 +461,7 @@ export default function ArrakisGamePage() {
           const newMapTerritories = { ...initialMapData.territories }
 
           // Player territories
-          savedState.player.territories.forEach((ownedTerritory) => {
+          savedState.player.territories?.forEach((ownedTerritory) => {
             const key = `${ownedTerritory.x},${ownedTerritory.y}`
             if (newMapTerritories[key]) {
               newMapTerritories[key] = { ...newMapTerritories[key], ...ownedTerritory }
@@ -471,7 +471,7 @@ export default function ArrakisGamePage() {
           // AI territories (from saved onlinePlayers)
           if (savedState.onlinePlayers) {
             Object.values(savedState.onlinePlayers).forEach((aiPlayer) => {
-              aiPlayer.territories.forEach((ownedTerritory) => {
+              aiPlayer.territories?.forEach((ownedTerritory) => {
                 const key = `${ownedTerritory.x},${ownedTerritory.y}`
                 if (newMapTerritories[key] && !newMapTerritories[key].ownerId) {
                   // AI claims only if still unowned by player
@@ -1248,6 +1248,7 @@ export default function ArrakisGamePage() {
         const newNotifications = [...prev.notifications]
         let newWorldEvents = [...prev.worldEvents]
         const newOnlinePlayers = JSON.parse(JSON.stringify(prev.onlinePlayers)) // Deep copy for AI modifications
+        let sandwormAttackTime = prev.sandwormAttackTime
 
         // --- 1. Player Stat Regen & Income (mostly existing logic) ---
         if (now - prev.lastEnergyRegen >= CONFIG.ENERGY_REGEN_INTERVAL) {
