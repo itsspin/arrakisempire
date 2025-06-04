@@ -172,8 +172,7 @@ body {
 .map-cell-boss {
   background: linear-gradient(135deg, #7e22ce, #6b21a8) !important;
   color: white !important;
-  animation: pulse-boss 2s infinite alternate;
-  box-shadow: 0 0 15px #7e22ce; /* Added distinct shadow */
+  animation: none;
 }
 
 .map-cell-special-enemy {
