@@ -1302,6 +1302,45 @@ export default function ArrakisGamePage() {
             newMap.enemies[key] = { ...enemy, currentHealth: originalEnemyData.health, cooldownUntil: null }
           }
         })
+
+        const activeEnemyCount = Object.values(newMap.enemies).filter((e) => !e.cooldownUntil).length
+        const maxEnemies = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * CONFIG.MAX_DYNAMIC_ENEMIES_FACTOR)
+        if (activeEnemyCount < maxEnemies && Math.random() < CONFIG.NEW_ENEMY_SPAWN_CHANCE_PER_TICK) {
+          const enemyKeys = Object.keys(STATIC_DATA.ENEMIES) as Array<keyof typeof STATIC_DATA.ENEMIES>
+          for (let i = 0; i < 20; i++) {
+            const { x, y } = getRandomMapCoords()
+            const spawnKey = `${x},${y}`
+            if (
+              !newMap.enemies[spawnKey] &&
+              !newMap.resources[spawnKey] &&
+              !newMap.items[spawnKey] &&
+              !newMap.territories[spawnKey].isDestroyed
+            ) {
+              const typeKey = enemyKeys[getRandomInt(0, enemyKeys.length - 1)]
+              const data = STATIC_DATA.ENEMIES[typeKey]
+              newMap.enemies[spawnKey] = {
+                id: `enemy_${spawnKey}`,
+                type: typeKey,
+                name: data.name,
+                icon: data.icon,
+                health: data.health,
+                currentHealth: data.health,
+                attack: data.attack,
+                defense: data.defense,
+                xp: data.xp,
+                loot: data.loot,
+                level: data.level,
+                description: data.description,
+                boss: data.boss || false,
+                special: data.special || false,
+                legendary: data.legendary || false,
+                lastMoveAttempt: 0,
+              }
+              addNotification(`${data.name} has appeared at (${x},${y})`, "info")
+              break
+            }
+          }
+        }
         // (Resource and Item respawn logic - assuming it's largely correct from before)
         // Item Respawn Logic (from original code)
         const newRespawnQueue = { ...itemRespawnQueue }
@@ -1574,6 +1613,31 @@ export default function ArrakisGamePage() {
 
                   newMap.enemies[newKey] = { ...enemy, position: newPos, id: `enemy_${newKey}` }
                   delete newMap.enemies[key] // Remove from old position
+
+                  const terr = newMap.territories[newKey]
+                  if (terr && terr.ownerId) {
+                    const ownerId = terr.ownerId
+                    if (ownerId === newPlayer.id) {
+                      newPlayer.territories = newPlayer.territories.filter(
+                        (t) => t.id !== terr.id,
+                      )
+                      addNotification(
+                        `${enemy.name} captured your territory ${terr.name || newKey}!`,
+                        "warning",
+                      )
+                    } else if (newOnlinePlayers[ownerId]) {
+                      newOnlinePlayers[ownerId].territories = newOnlinePlayers[ownerId].territories.filter(
+                        (t: any) => t.id !== terr.id,
+                      )
+                    }
+                    newMap.territories[newKey] = {
+                      ...terr,
+                      ownerId: null,
+                      ownerName: undefined,
+                      ownerColor: undefined,
+                      captureLevel: 0,
+                    }
+                  }
                   // addNotification(`${enemy.name} moved to ${newPos.x},${newPos.y}.`, 'info'); // Can be spammy
                 }
               }
