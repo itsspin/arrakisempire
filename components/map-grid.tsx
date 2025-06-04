@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import type { GameState, Player } from "@/types/game"
 import { CONFIG, HOUSE_COLORS } from "@/lib/constants"
@@ -27,8 +28,22 @@ export function MapGrid({
   onZoomChange,
   trackingTarget = null,
 }: MapGridProps) {
+  const isMobile = useIsMobile()
+  const gridRef = React.useRef<HTMLDivElement>(null)
+  const playerCellRef = React.useRef<HTMLDivElement>(null)
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
+
+  React.useEffect(() => {
+    if (!isMobile) return
+    const grid = gridRef.current
+    const playerCell = playerCellRef.current
+    if (grid && playerCell) {
+      const left = playerCell.offsetLeft - grid.clientWidth / 2 + playerCell.clientWidth / 2
+      const top = playerCell.offsetTop - grid.clientHeight / 2 + playerCell.clientHeight / 2
+      grid.scrollTo({ left, top })
+    }
+  }, [playerX, playerY, zoom, isMobile])
 
   const arrow = React.useMemo(() => {
     if (!trackingTarget) return ""
@@ -155,6 +170,7 @@ export function MapGrid({
       cells.push(
         <div
           key={key}
+          ref={x === playerX && y === playerY ? playerCellRef : undefined}
           className={cellClass}
           title={cellTitle}
           onClick={() => onCellClick(x, y)}
@@ -187,7 +203,7 @@ export function MapGrid({
   return (
     <div className="relative">
       {arrow && <div className="tracking-arrow">{arrow}</div>}
-      <div className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
+      <div ref={gridRef} className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
         {cells}
       </div>
     </div>
