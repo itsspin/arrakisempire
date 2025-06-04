@@ -985,9 +985,9 @@ export default function ArrakisGamePage() {
           }
         }
       } else if (result === "lose") {
-        newPlayer.position = { ...newPlayer.basePosition }
+        newPlayer.position = getRandomMapCoords()
         newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
-        addNotification("You respawned at your base.", "info")
+        addNotification("You respawned in a random location.", "info")
         if (currentFullGameState.capturingTerritoryId) {
           const terrKey = currentFullGameState.capturingTerritoryId
           const terr = newMap.territories[terrKey]
@@ -1936,9 +1936,10 @@ export default function ArrakisGamePage() {
               newPlayer.territories = newPlayer.territories.filter((t) => t.id !== terr.id)
             }
           }
-          newPlayer.position = { ...newPlayer.basePosition }
+          newPlayer.position = getRandomMapCoords()
           newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
           newNotifications.push({ id: (now + 1).toString(), message: "A sandworm devours you!", type: "legendary" })
+          newNotifications.push({ id: (now + 2).toString(), message: "You respawned in a random location.", type: "info" })
           sandwormAttackTime = null
         }
 
