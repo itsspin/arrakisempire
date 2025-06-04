@@ -1,8 +1,9 @@
 "use client"
 
+import type React from "react"
+
 import type { GameState, Player } from "@/types/game"
 import { CONFIG, HOUSE_COLORS } from "@/lib/constants"
-import { CONFIG } from "@/lib/constants"
 import { isInBaseArea } from "@/lib/utils"
 
 interface MapGridProps {
@@ -111,7 +112,6 @@ export function MapGrid({
         hasBackground = true
       }
 
-
       // Enemies
       const enemy = mapData.enemies[key]
       if (enemy && cellContent === "") {
@@ -122,7 +122,6 @@ export function MapGrid({
         cellTitle = `${enemy.name} (Lv.${enemy.level})`
         hasBackground = true
       }
-
 
       // Seekers
       const seeker = mapData.seekers[key]
@@ -168,9 +167,7 @@ export function MapGrid({
           {playerLabel && <span className="player-name-label">{playerLabel}</span>}
           {houseIndicatorClass && <span className={`house-indicator ${houseIndicatorClass}`} />}
           {seeker && (
-            <span className="seeker-countdown">
-              {Math.max(0, Math.ceil((seeker.claimTime - Date.now()) / 1000))}
-            </span>
+            <span className="seeker-countdown">{Math.max(0, Math.ceil((seeker.claimTime - Date.now()) / 1000))}</span>
           )}
           {cellContent}
         </div>,
@@ -194,11 +191,7 @@ export function MapGrid({
   return (
     <div className="relative">
       {arrow && <div className="tracking-arrow">{arrow}</div>}
-      <div
-        className="map-grid mx-auto overflow-x-auto"
-        style={gridStyle}
-        onWheel={handleWheel}
-      >
+      <div className="map-grid mx-auto overflow-x-auto" style={gridStyle} onWheel={handleWheel}>
         {cells}
       </div>
     </div>
