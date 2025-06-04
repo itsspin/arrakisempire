@@ -28,6 +28,7 @@ import { AbilitySelectionModal } from "@/components/modals/ability-selection-mod
 import { TradePanel } from "@/components/trade-panel"
 import { TradingModal } from "@/components/modals/trading-modal"
 import { UpdatesTab } from "@/components/updates-tab"
+import { WishlistTab } from "@/components/wishlist-tab"
 import { BountyBoard } from "@/components/bounty-board"
 import { Slider } from "@/components/ui/slider"
 import { PauseModal } from "@/components/modals/pause-modal"
@@ -3107,6 +3108,7 @@ export default function ArrakisGamePage() {
             </div>
           )}
           {gameState.currentTab === "updates" && <UpdatesTab />}
+          {gameState.currentTab === "wishlist" && <WishlistTab />}
         </div>
       </main>
 
