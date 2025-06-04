@@ -24,14 +24,16 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       const isAdjacent = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0)
       const key = `${x},${y}`
 
-      let cellClass = "map-cell map-cell-desert" // Default to desert
-      let cellContent = "" // Default desert cells will be styled by map-cell-desert
+      let cellClass = "map-cell"
+      let cellContent = ""
       let cellTitle = `Desert (${x},${y})`
+      let hasBackground = false
       let playerLabel: string | null = null
 
       // Player
       if (x === playerX && y === playerY) {
         cellClass += " map-cell-player"
+        hasBackground = true
         cellContent = "👤"
         cellTitle = `${player.name} (P${player.prestigeLevel}) - Your Position`
         playerLabel = player.name
@@ -43,6 +45,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         )
         if (otherPlayerOnCell) {
           cellClass += ` map-cell-other-player player-color-${otherPlayerOnCell.color || "gray"}`
+          hasBackground = true
           cellContent = "👤"
           cellTitle = `${otherPlayerOnCell.name} (P${otherPlayerOnCell.prestigeLevel || 0})`
           playerLabel = otherPlayerOnCell.name
@@ -61,12 +64,13 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         } else {
           cellTitle = `Unclaimed Territory (${key}) - Cost: ${territory.purchaseCost}`
         }
+        if (territory.ownerId) hasBackground = true
       }
 
       // Items (New)
       const itemOnCell = mapData.items[key]
       if (itemOnCell && cellContent === "") {
-        cellClass += " map-cell-item" // Add a specific class for items if needed
+        cellClass += " map-cell-item"
         cellContent = itemOnCell.icon
         cellTitle = `${itemOnCell.name} (${itemOnCell.rarity})`
       }
@@ -74,10 +78,10 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       // Enemies
       const enemy = mapData.enemies[key]
       if (enemy && cellContent === "") {
-        // Prioritize player/other players over enemies for icon
         cellClass += enemy.boss ? " map-cell-boss" : enemy.special ? " map-cell-special-enemy" : " map-cell-enemy"
         cellContent = enemy.icon
         cellTitle = `${enemy.name} (Lv.${enemy.level})`
+        hasBackground = true
       }
 
       // Resources
@@ -87,6 +91,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         const icons = { spice: "✨", water: "💧", plasteel: "🔧", rareMaterials: "💎" }
         cellContent = icons[resource.type] || "📦"
         cellTitle = `${resource.type.charAt(0).toUpperCase() + resource.type.slice(1)} (${resource.amount})`
+        hasBackground = true
       }
 
       // World Events Markers (can be an overlay on the cell)
@@ -95,10 +100,15 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         cellClass += " map-cell-world-event"
         cellContent = eventOnCell.icon
         cellTitle = `${eventOnCell.name}: ${eventOnCell.description}`
+        hasBackground = true
       }
 
       if (isAdjacent) {
         cellClass += " map-cell-movable"
+      }
+
+      if (!hasBackground) {
+        cellClass += " map-cell-desert"
       }
 
       cells.push(
