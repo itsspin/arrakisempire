@@ -263,9 +263,12 @@ export function EmpireTab({
       <div className="mt-6">
         <button
           onClick={onLaunchSeeker}
-          disabled={resources.solari < CONFIG.SEEKER_COST}
+          disabled={
+            resources.solari < CONFIG.SEEKER_COST ||
+            player.level < CONFIG.SEEKER_LEVEL_REQUIRED
+          }
           className="w-full py-3 bg-red-600 hover:bg-red-700 rounded font-bold mb-3 disabled:bg-stone-600"
-          title={`Costs ${CONFIG.SEEKER_COST.toLocaleString()} Solari`}
+          title={`Costs ${CONFIG.SEEKER_COST.toLocaleString()} Solari | Requires level ${CONFIG.SEEKER_LEVEL_REQUIRED}`}
         >
           Launch Seeker Drone
         </button>

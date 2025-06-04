@@ -2445,6 +2445,13 @@ export default function ArrakisGamePage() {
 
       const newResources = { ...prev.resources }
       const newPlayer = { ...prev.player }
+      if (newPlayer.level < CONFIG.SEEKER_LEVEL_REQUIRED) {
+        addNotification(
+          `Reach level ${CONFIG.SEEKER_LEVEL_REQUIRED} to launch a Seeker!`,
+          "warning",
+        )
+        return prev
+      }
       if (newResources.solari < CONFIG.SEEKER_COST) {
         addNotification(`Need ${CONFIG.SEEKER_COST.toLocaleString()} Solari to launch a Seeker!`, "warning")
         return prev
