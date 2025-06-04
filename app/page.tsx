@@ -2884,6 +2884,14 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
+  const handleSandwormContinue = useCallback(() => {
+    setGameState((prev) => ({
+      ...prev,
+      sandwormAttackTime: null,
+      player: { ...prev.player, lastActive: Date.now() },
+    }))
+  }, [])
+
   // Conditional rendering starts here, after all hooks are declared
   if (!user) return <LoginForm />
   if (isLoading) return <LoadingScreen isVisible={true} />
@@ -3164,7 +3172,10 @@ export default function ArrakisGamePage() {
         onRemoveOffer={handleRemoveTradeOffer}
       />
       <PauseModal isOpen={gameState.isPaused} onResume={() => setGameState((prev) => ({ ...prev, isPaused: false }))} />
-      <SandwormWarning timeLeft={gameState.sandwormAttackTime ? gameState.sandwormAttackTime - Date.now() : 0} />
+      <SandwormWarning
+        timeLeft={gameState.sandwormAttackTime ? gameState.sandwormAttackTime - Date.now() : 0}
+        onContinue={handleSandwormContinue}
+      />
     </div>
   )
 }
