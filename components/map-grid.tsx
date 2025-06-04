@@ -30,19 +30,22 @@ export function MapGrid({
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
 
-  let arrow = ""
-  if (trackingTarget) {
+  const arrow = React.useMemo(() => {
+    if (!trackingTarget) return ""
     const dx = trackingTarget.x - playerX
     const dy = trackingTarget.y - playerY
     if (Math.abs(dx) > Math.abs(dy)) {
-      arrow = dx > 0 ? "→" : "←"
-    } else if (Math.abs(dy) > Math.abs(dx)) {
-      arrow = dy > 0 ? "↓" : "↑"
-    } else if (dx > 0 && dy > 0) arrow = "↘"
-    else if (dx > 0 && dy < 0) arrow = "↗"
-    else if (dx < 0 && dy > 0) arrow = "↙"
-    else if (dx < 0 && dy < 0) arrow = "↖"
-  }
+      return dx > 0 ? "→" : "←"
+    }
+    if (Math.abs(dy) > Math.abs(dx)) {
+      return dy > 0 ? "↓" : "↑"
+    }
+    if (dx > 0 && dy > 0) return "↘"
+    if (dx > 0 && dy < 0) return "↗"
+    if (dx < 0 && dy > 0) return "↙"
+    if (dx < 0 && dy < 0) return "↖"
+    return ""
+  }, [trackingTarget, playerX, playerY])
 
   const cells = []
   for (let dy = -radius; dy <= radius; dy++) {
@@ -180,18 +183,11 @@ export function MapGrid({
     "--map-columns": radius * 2 + 1,
   } as React.CSSProperties
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!onZoomChange) return
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.1 : 0.1
-    const newZoom = Math.min(2, Math.max(0.5, zoom + delta))
-    onZoomChange(Number(newZoom.toFixed(2)))
-  }
 
   return (
     <div className="relative">
       {arrow && <div className="tracking-arrow">{arrow}</div>}
-      <div className="map-grid mx-auto overflow-x-auto" style={gridStyle} onWheel={handleWheel}>
+      <div className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
         {cells}
       </div>
     </div>

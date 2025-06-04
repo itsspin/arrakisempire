@@ -43,8 +43,8 @@ import type {
   Combat,
   Resources,
   Ability,
-  WorldEvent, // Added WorldEvent
-  AIPlayer, // Added AIPlayer
+  WorldEvent,
+  AIPlayer,
   PlayerColor,
   Quest,
   TradeOffer,
@@ -56,7 +56,7 @@ import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { LoginForm } from "@/components/login-form"
 
-import { initialVentures as empireInitialVentures } from "@/components/empire-tab"
+import { initialVentures as empireInitialVentures } from "@/components/empire-tab" // Correct import
 
 const getRandomInt = (min: number, max: number) => {
   min = Math.ceil(min)
@@ -456,6 +456,7 @@ export default function ArrakisGamePage() {
   const [zoom, setZoom] = useState(1.2)
   const [user, setUser] = useState(() => auth.currentUser)
 
+  // All hooks must be declared unconditionally at the top level
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
     return () => unsub()
@@ -470,7 +471,6 @@ export default function ArrakisGamePage() {
   }, [gameState])
 
   const addNotification = useCallback((message: string, type: GameState["notifications"][0]["type"] = "info") => {
-    // Unchanged
     const now = Date.now()
     if (type === "legendary" || type === "mythic" || type === "error" || type === "warning") {
       setGameState((prev) => ({
@@ -496,9 +496,9 @@ export default function ArrakisGamePage() {
       chatMessages: [
         ...prev.chatMessages,
         {
-          senderId: "system",
-          senderName: "System",
-          senderColor: "yellow",
+          senderId: prev.player.id || "anonymous",
+          senderName: prev.player.name,
+          senderColor: prev.player.color,
           timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
           message,
         },
@@ -549,7 +549,10 @@ export default function ArrakisGamePage() {
   // --- GAME INITIALIZATION (Firebase loading, etc.) ---
   useEffect(() => {
     const initGame = async () => {
-      if (!user) return
+      if (!user) {
+        setIsLoading(false) // Ensure loading is false if no user, so LoginForm can render
+        return
+      }
       console.log("Initializing game...")
       setIsLoading(true)
       try {
@@ -685,10 +688,13 @@ export default function ArrakisGamePage() {
       }
     }
     initGame()
-  }, [user])
+  }, [user, addNotification]) // Added addNotification to dependencies
 
   // Periodically refresh leaderboard from Firestore
   useEffect(() => {
+    // Only run if user is logged in and game is initialized
+    if (!user || !gameState.gameInitialized) return
+
     const updateLeaderboard = async () => {
       try {
         const leaderboard = await fetchLeaderboardData()
@@ -700,7 +706,7 @@ export default function ArrakisGamePage() {
     updateLeaderboard()
     const interval = setInterval(updateLeaderboard, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [user, gameState.gameInitialized]) // Added user and gameState.gameInitialized to dependencies
 
   const handleSendMessage = useCallback((message: string) => {
     setGameState((prev) => {
@@ -711,7 +717,7 @@ export default function ArrakisGamePage() {
           senderName: prev.player.name,
           senderColor: prev.player.color,
           timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
-          message: message,
+          message,
         },
       ]
       return { ...prev, chatMessages: newMessages }
@@ -1036,7 +1042,7 @@ export default function ArrakisGamePage() {
       }
       return finalState
     },
-    [addNotification, gameStateRef, availableAbilitiesForSelection], // Added gameStateRef
+    [addNotification, gameStateRef, availableAbilitiesForSelection, updateQuestProgress, addWorldChatMessage], // Added missing dependencies
   )
 
   const handlePlayerAttack = useCallback(
@@ -1405,6 +1411,9 @@ export default function ArrakisGamePage() {
 
   // --- NEW GAME LOOP ---
   useEffect(() => {
+    // Only run if user is logged in and game is initialized
+    if (!user || !gameState.gameInitialized) return
+
     const gameTickInterval = setInterval(() => {
       const currentTickTime = Date.now()
       // Access latest state via ref for intervals
@@ -1644,7 +1653,7 @@ export default function ArrakisGamePage() {
                       addNotification(`Sandstorm reclaimed ${terr.name || terrKey}!`, "warning")
                     } else if (newOnlinePlayers[ownerId]) {
                       newOnlinePlayers[ownerId].territories = newOnlinePlayers[ownerId].territories.filter(
-                        (t) => t.id !== terr.id,
+                        (t: any) => t.id !== terr.id,
                       )
                     }
                     newMap.territories[terrKey] = {
@@ -1730,8 +1739,8 @@ export default function ArrakisGamePage() {
                     const checkX = (ownedTerr.position?.x ?? ownedTerr.x) + dir[0]
                     const checkY = (ownedTerr.position?.y ?? ownedTerr.y) + dir[1]
                     if (checkX >= 0 && checkX < CONFIG.MAP_SIZE && checkY >= 0 && checkY < CONFIG.MAP_SIZE) {
-                      const targetKey = `${checkX},${checkY}`
-                      const targetTerr = newMap.territories[targetKey]
+                      const targetCellKey = `${checkX},${checkY}`
+                      const targetTerr = newMap.territories[targetCellKey]
                       if (targetTerr && !targetTerr.ownerId && !targetTerr.isDestroyed) {
                         potentialTargets.push(targetTerr)
                       }
@@ -2002,22 +2011,12 @@ export default function ArrakisGamePage() {
     }, 1000) // Main game tick interval (1 second)
 
     const saveGameInterval = setInterval(async () => {
-      // Unchanged
       const currentGameState = gameStateRef.current
       if (currentGameState.player.id && currentGameState.gameInitialized) {
         try {
-          // Create a state object for saving, potentially exclude very large or transient parts if needed
-          // For example, detailed enemy AI state if it becomes complex and not easily serializable.
-          // The current setup saves most things. Consider if map should be partially saved or reconstructed.
-          // Player-owned territories are saved via player.territories.
-
-          // AIs' states including their resources and territories need to be in `stateToSave.onlinePlayers`
           const { map, ...stateToSaveWithoutFullMap } = currentGameState
           const stateToSave = {
             ...stateToSaveWithoutFullMap,
-            // Only save territory ownership data, not the full static territory details always.
-            // However, current save logic in initGame reconstructs map and applies ownership.
-            // For simplicity, let's assume the current save logic is okay.
           }
 
           await setDoc(doc(db, "players", currentGameState.player.id), stateToSave)
@@ -2036,7 +2035,7 @@ export default function ArrakisGamePage() {
       clearInterval(gameTickInterval)
       clearInterval(saveGameInterval)
     }
-  }, [isLoading]) // Re-added isLoading to dependencies of the main useEffect
+  }, [isLoading, user, gameState.gameInitialized, addNotification]) // Re-added isLoading, user, gameState.gameInitialized to dependencies of the main useEffect
 
   // --- Action handlers (attemptPlayerAction, handleMapCellClick, handlePurchaseTerritory, etc.) ---
   // These need to be aware of the new game elements like AI territories or event effects.
@@ -2273,12 +2272,14 @@ export default function ArrakisGamePage() {
         return resultState
       })
     },
-    [addNotification, handleCombatEnd],
+    [addNotification, handleCombatEnd, updateQuestProgress], // Added missing dependencies
   )
 
   // WASD Controls: Ensure it checks new modal flags if any are added for pausing. Fine for now.
   useEffect(() => {
-    // Unchanged from original logic structure
+    // Only attach listener if user is logged in and game is initialized
+    if (!user || !gameState.gameInitialized) return
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         !gameStateRef.current.gameInitialized ||
@@ -2330,15 +2331,13 @@ export default function ArrakisGamePage() {
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isLoading, attemptPlayerAction]) // gameStateRef is implicitly handled by attemptPlayerAction closure
+  }, [isLoading, attemptPlayerAction, user, gameState.gameInitialized]) // Added user and gameState.gameInitialized to dependencies
 
   const handleTabChange = useCallback((tab: string) => {
-    // Unchanged
     setGameState((prev) => ({ ...prev, currentTab: tab }))
   }, [])
 
   const handleMapCellClick = useCallback(
-    // Unchanged
     (x: number, y: number) => {
       setGameState((prev) => {
         const key = `${x},${y}`
@@ -2399,7 +2398,7 @@ export default function ArrakisGamePage() {
         }
       })
     },
-    [addNotification],
+    [addNotification, updateQuestProgress], // Added updateQuestProgress to dependencies
   )
 
   const handlePurchaseRandomTerritory = useCallback(() => {
@@ -2452,6 +2451,7 @@ export default function ArrakisGamePage() {
     })
     updateQuestProgress("territory")
   }, [addNotification])
+  }, [addNotification, updateQuestProgress]) // Added updateQuestProgress to dependencies
 
   const handleLaunchSeeker = useCallback(() => {
     setGameState((prev) => {
@@ -2463,6 +2463,13 @@ export default function ArrakisGamePage() {
 
       const newResources = { ...prev.resources }
       const newPlayer = { ...prev.player }
+      if (newPlayer.level < CONFIG.SEEKER_LEVEL_REQUIRED) {
+        addNotification(
+          `Reach level ${CONFIG.SEEKER_LEVEL_REQUIRED} to launch a Seeker!`,
+          "warning",
+        )
+        return prev
+      }
       if (newResources.solari < CONFIG.SEEKER_COST) {
         addNotification(`Need ${CONFIG.SEEKER_COST.toLocaleString()} Solari to launch a Seeker!`, "warning")
         return prev
@@ -2799,7 +2806,6 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
-  if (!user) return <LoginForm />
   const handleEditTradeOffer = useCallback(
     (offerId: string, resource: keyof Resources, price: number) => {
       setGameState((prev) => {
@@ -2840,6 +2846,8 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
+  // Conditional rendering starts here, after all hooks are declared
+  if (!user) return <LoginForm />
   if (isLoading) return <LoadingScreen isVisible={true} />
 
   const selectedTerritory = gameState.selectedTerritoryCoords

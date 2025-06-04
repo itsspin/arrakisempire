@@ -46,7 +46,8 @@ export const CONFIG = {
   OWNED_TERRITORY_COST_MULTIPLIER: 5, // Multiplier if the random territory is already owned
   IDLE_TIME_BEFORE_WORM: 120000, // 2 minutes of inactivity before warning
   SANDWORM_COUNTDOWN: 10000, // Countdown duration after warning
-  SEEKER_COST: 5000,
+  SEEKER_COST: 1000,
+  SEEKER_LEVEL_REQUIRED: 7,
   SEEKER_COOLDOWN: 60000,
   TRACK_COST_PLASTEEL: 50,
   BOUNTY_INCREMENT: 100,
