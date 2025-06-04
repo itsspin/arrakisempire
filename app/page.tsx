@@ -22,11 +22,13 @@ import { HousesPanel } from "@/components/houses-panel"
 import { WorldEventsPanel } from "@/components/world-events-panel"
 import { PrestigeModal } from "@/components/modals/prestige-modal"
 import { WorldChat } from "@/components/world-chat"
+import { isInBaseArea } from "@/lib/utils"
 import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
 import { TradingModal } from "@/components/modals/trading-modal"
 import { UpdatesTab } from "@/components/updates-tab"
+import { BountyBoard } from "@/components/bounty-board"
 import { Slider } from "@/components/ui/slider"
 import { PauseModal } from "@/components/modals/pause-modal"
 import { SandwormWarning } from "@/components/sandworm-warning"
@@ -186,6 +188,7 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     dodgeChance: 15,
     position: initialPosition,
     basePosition: initialPosition,
+    baseBuilt: false,
     house: null,
     rank: 100,
     rankName: "Sand Nomad",
@@ -198,6 +201,7 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     energyProductionRate: CONFIG.ENERGY_REGEN_RATE,
     created: Date.now(),
     lastActive: Date.now(),
+    bounty: 0,
     investments: JSON.parse(JSON.stringify(empireInitialVentures)), // Deep copy to ensure unique instance per player
     spicePerClick: 1,
     spiceClickUpgradeCost: 50,
@@ -242,8 +246,10 @@ const createInitialAIPlayer = (
     name: name,
     house: house,
     color: color,
+    bounty: 0,
     position: getRandomMapCoords(), // Give AI a random starting position
     basePosition: initialPlayerPart.position, // Same as initial for now
+    baseBuilt: false,
     // AIs have their own resources
     resources: {
       spice: getRandomInt(1000, 3000),
@@ -325,6 +331,8 @@ const initialGameState: GameState = {
   isPaused: false,
   sandwormAttackTime: null,
   lastSeekerLaunchTime: 0,
+  bounties: {},
+  trackingTargetId: null,
 }
 
 const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
@@ -437,6 +445,22 @@ export default function ArrakisGamePage() {
     lastGeneralNotificationTime.current = now
   }, [])
 
+  const addWorldChatMessage = useCallback((message: string) => {
+    setGameState((prev) => ({
+      ...prev,
+      chatMessages: [
+        ...prev.chatMessages,
+        {
+          senderId: "system",
+          senderName: "System",
+          senderColor: "yellow",
+          timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+          message,
+        },
+      ],
+    }))
+  }, [])
+
   const updateQuestProgress = useCallback((type: Quest["type"], amount = 1) => {
     setGameState((prev) => {
       let quests = prev.quests.map((q) => {
@@ -541,6 +565,8 @@ export default function ArrakisGamePage() {
             activeAbility: savedState.player.activeAbility || null,
             isDefending: savedState.player.isDefending || false,
             abilityCooldowns: savedState.abilityCooldowns || {},
+            bounties: savedState.bounties || {},
+            trackingTargetId: savedState.trackingTargetId || null,
             quests: savedState.quests || generateInitialQuests(),
             completedQuests: savedState.completedQuests || [],
             lastAIProcessingTime: Date.now(), // Initialize processing times
@@ -565,6 +591,8 @@ export default function ArrakisGamePage() {
             completedQuests: [],
             lastAIProcessingTime: Date.now(),
             lastWorldEventProcessingTime: Date.now(),
+            bounties: {},
+            trackingTargetId: null,
           }
 
           // Give initial territories to AIs on new game
@@ -707,6 +735,8 @@ export default function ArrakisGamePage() {
         enemies: { ...mapState.enemies },
         territories: { ...mapState.territories },
       } // Be careful with deep copies if needed
+      const newBounties = { ...currentFullGameState.bounties }
+      let trackingTargetId = currentFullGameState.trackingTargetId || null
       const updatedInventory = [...currentFullGameState.inventory] // Use inventory from the ref
       const now = Date.now()
 
@@ -762,6 +792,9 @@ export default function ArrakisGamePage() {
             if (emptySlotIndex !== -1) {
               updatedInventory[emptySlotIndex] = itemData
               addNotification(`You found a ${itemData.icon} ${itemData.name}!`, "success")
+              if (itemData.rarity === "epic" || itemData.rarity === "legendary") {
+                addWorldChatMessage(`${newPlayer.name} found an ${itemData.rarity} ${itemData.name}!`)
+              }
             } else {
               addNotification(`Inventory full! Could not pick up ${itemData.name}.`, "warning")
             }
@@ -877,6 +910,13 @@ export default function ArrakisGamePage() {
               `${defeatedPlayer.name} lost ${territoriesToLose} territories!`,
               "info",
             )
+            const bounty = newBounties[enemyId] || 0
+            if (bounty > 0) {
+              newResources.solari += bounty
+              addNotification(`Bounty collected: ${bounty} Solari!`, "success")
+              delete newBounties[enemyId]
+              if (trackingTargetId === enemyId) trackingTargetId = null
+            }
           }
         }
       } else if (result === "lose") {
@@ -954,6 +994,8 @@ export default function ArrakisGamePage() {
         isCombatModalOpen: false,
         inventory: updatedInventory,
         capturingTerritoryId: null,
+        bounties: newBounties,
+        trackingTargetId,
         // If ability modal should open, set flag here:
         isAbilitySelectionModalOpen:
           result === "win" &&
@@ -1448,7 +1490,8 @@ export default function ArrakisGamePage() {
               !newMap.enemies[spawnKey] &&
               !newMap.resources[spawnKey] &&
               !newMap.items[spawnKey] &&
-              !newMap.territories[spawnKey].isDestroyed
+              !newMap.territories[spawnKey].isDestroyed &&
+              !isInBaseArea(newPlayer, x, y)
             ) {
               const typeKey = enemyKeys[getRandomInt(0, enemyKeys.length - 1)]
               const data = STATIC_DATA.ENEMIES[typeKey]
@@ -1504,10 +1547,15 @@ export default function ArrakisGamePage() {
                       const targetKey = targetTerr.position
                         ? `${targetTerr.position.x},${targetTerr.position.y}`
                         : `${targetTerr.x},${targetTerr.y}`
-                      newMap.territories[targetKey].isDestroyed = true
-                      newMap.territories[targetKey].destroyedUntil = now + 180000 // Destroyed for 3 mins
-                      newChainedEvent.description = `${newChainedEvent.name} targets Sector ${targetTerr.name || targetKey}! Buildings and units are lost!`
-                      addNotification(`SHAI-HULUD ATTACKS ${targetTerr.name || targetKey}!`, "legendary")
+                      const owner =
+                        targetTerr.ownerId === newPlayer.id
+                          ? newPlayer
+                          : newOnlinePlayers[targetTerr.ownerId!]
+                      if (!isInBaseArea(owner, targetTerr.position.x, targetTerr.position.y)) {
+                        newMap.territories[targetKey].isDestroyed = true
+                        newMap.territories[targetKey].destroyedUntil = now + 180000 // Destroyed for 3 mins
+                        newChainedEvent.description = `${newChainedEvent.name} targets Sector ${targetTerr.name || targetKey}! Buildings and units are lost!`
+                        addNotification(`SHAI-HULUD ATTACKS ${targetTerr.name || targetKey}!`, "legendary")
 
                       // Remove units/enemies from this territory (simplified)
                       Object.keys(newMap.enemies).forEach((ekey) => {
@@ -1519,6 +1567,7 @@ export default function ArrakisGamePage() {
                         }
                       })
                     }
+                  }
                   }
                   newWorldEvents.push(newChainedEvent)
                   addNotification(`New Event: ${newChainedEvent.name}! - ${newChainedEvent.description}`, "warning")
@@ -1565,6 +1614,9 @@ export default function ArrakisGamePage() {
                   const terr = newMap.territories[terrKey]
                   const ownerId = terr.ownerId
                   if (ownerId) {
+                    if (isInBaseArea(ownerId === newPlayer.id ? newPlayer : newOnlinePlayers[ownerId], terr.position.x, terr.position.y)) {
+                      continue
+                    }
                     if (ownerId === newPlayer.id) {
                       newPlayer.territories = newPlayer.territories.filter(
                         (t) => t.id !== terr.id,
@@ -1770,7 +1822,8 @@ export default function ArrakisGamePage() {
                       !Object.values(newOnlinePlayers).some(
                         (p) => p.position?.x === nextX && p.position?.y === nextY,
                       ) &&
-                      !newMap.territories[targetCellKey].isDestroyed
+                      !newMap.territories[targetCellKey].isDestroyed &&
+                      !isInBaseArea(newPlayer, nextX, nextY)
                     ) {
                       possibleMoves.push({ x: nextX, y: nextY })
                     }
@@ -1785,7 +1838,7 @@ export default function ArrakisGamePage() {
                   delete newMap.enemies[key] // Remove from old position
 
                   const terr = newMap.territories[newKey]
-                  if (terr && terr.ownerId) {
+                  if (terr && terr.ownerId && !isInBaseArea(newPlayer, newPos.x, newPos.y)) {
                     const ownerId = terr.ownerId
                     if (ownerId === newPlayer.id) {
                       newPlayer.territories = newPlayer.territories.filter(
@@ -1818,7 +1871,7 @@ export default function ArrakisGamePage() {
 
         // Idle sandworm warning and attack
         const idleTime = now - newPlayer.lastActive
-        if (!sandwormAttackTime && idleTime >= CONFIG.IDLE_TIME_BEFORE_WORM) {
+        if (!sandwormAttackTime && idleTime >= CONFIG.IDLE_TIME_BEFORE_WORM && !isInBaseArea(newPlayer, newPlayer.position.x, newPlayer.position.y)) {
           sandwormAttackTime = now + CONFIG.SANDWORM_COUNTDOWN
           newNotifications.push({
             id: now.toString(),
@@ -1829,7 +1882,7 @@ export default function ArrakisGamePage() {
         if (sandwormAttackTime && idleTime < CONFIG.IDLE_TIME_BEFORE_WORM) {
           sandwormAttackTime = null
         }
-        if (sandwormAttackTime && now >= sandwormAttackTime) {
+        if (sandwormAttackTime && now >= sandwormAttackTime && !isInBaseArea(newPlayer, newPlayer.position.x, newPlayer.position.y)) {
           const ownedKeys = [
             ...newPlayer.territories
               .filter((t) => t.position)
@@ -1840,7 +1893,7 @@ export default function ArrakisGamePage() {
             const idx = getRandomInt(0, ownedKeys.length - 1)
             const terrKey = ownedKeys.splice(idx, 1)[0]
             const terr = newMap.territories[terrKey]
-            if (terr) {
+            if (terr && !isInBaseArea(newPlayer, terr.position.x, terr.position.y)) {
               newMap.territories[terrKey] = { ...terr, ownerId: null, ownerName: undefined, ownerColor: undefined }
               newPlayer.territories = newPlayer.territories.filter((t) => t.id !== terr.id)
             }
@@ -2106,7 +2159,10 @@ export default function ArrakisGamePage() {
             (player.equipment?.accessory?.attack || 0) +
             (player.equipment?.accessory?.defense || 0)
           const gearMultiplier = 1 + gearPower * CONFIG.GEAR_SCALING_FACTOR
-          const baseScaling = Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR)
+          const scalingFactor = originalEnemyData.special
+            ? CONFIG.SPECIAL_ENEMY_SCALING_FACTOR
+            : CONFIG.NORMAL_ENEMY_SCALING_FACTOR
+          const baseScaling = Math.max(0.1, 1 + levelDifference * scalingFactor)
           const specialBonus = originalEnemyData.special ? 1 + CONFIG.SPECIAL_ENEMY_SCALING_BONUS : 1
           const scalingMultiplier = baseScaling * gearMultiplier * specialBonus
 
@@ -2437,6 +2493,42 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  const handleTrackPlayer = useCallback(
+    (targetId: string) => {
+      setGameState((prev) => {
+        const newResources = { ...prev.resources }
+        if (newResources.plasteel < CONFIG.TRACK_COST_PLASTEEL) {
+          addNotification(
+            `Need ${CONFIG.TRACK_COST_PLASTEEL} Plasteel to track a target!`,
+            "warning",
+          )
+          return prev
+        }
+        newResources.plasteel -= CONFIG.TRACK_COST_PLASTEEL
+        return { ...prev, resources: newResources, trackingTargetId: targetId }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleAddBounty = useCallback(
+    (targetId: string) => {
+      setGameState((prev) => {
+        const amount = CONFIG.BOUNTY_INCREMENT
+        const newResources = { ...prev.resources }
+        const newBounties = { ...prev.bounties }
+        if (newResources.solari < amount) {
+          addNotification(`Need ${amount} Solari to add a bounty!`, "warning")
+          return prev
+        }
+        newResources.solari -= amount
+        newBounties[targetId] = (newBounties[targetId] || 0) + amount
+        return { ...prev, resources: newResources, bounties: newBounties }
+      })
+    },
+    [addNotification],
+  )
+
   const handleEquipItem = useCallback(
     (item: Item, inventoryIndex: number) => {
       setGameState((prev) => {
@@ -2444,23 +2536,12 @@ export default function ArrakisGamePage() {
         const newEquipment = { ...prev.equipment }
         const newInventory = [...prev.inventory]
 
-        const currentEquippedItem = newEquipment[item.type as keyof typeof newEquipment]
+        const slot = item.type as keyof typeof newEquipment
+        const currentEquippedItem = newEquipment[slot]
 
-        // Unequip current item if slot is occupied and it's different from the new item
-        if (currentEquippedItem && currentEquippedItem.id !== item.id) {
-          const emptySlotIndex = newInventory.findIndex((slot) => slot === null)
-          if (emptySlotIndex !== -1) {
-            newInventory[emptySlotIndex] = currentEquippedItem
-            addNotification(`Unequipped ${currentEquippedItem.name}.`, "info")
-          } else {
-            addNotification("Inventory full! Cannot unequip current item.", "warning")
-            return prev // Cannot unequip, so cannot equip new item
-          }
-        }
-
-        // Equip the new item
-        newEquipment[item.type as keyof typeof newEquipment] = item
-        newInventory[inventoryIndex] = null // Remove item from inventory
+        // Swap the equipped item with the inventory item
+        newEquipment[slot] = item
+        newInventory[inventoryIndex] = currentEquippedItem || null
 
         // Update player stats based on equipped item
         newPlayer.attack = initialGameState.player.attack + (newEquipment.weapon?.attack || 0)
@@ -2590,6 +2671,18 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  const handleBuildBase = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.player.baseBuilt) {
+        addNotification("Base already built!", "warning")
+        return prev
+      }
+      const newPlayer = { ...prev.player, basePosition: { ...prev.player.position }, baseBuilt: true }
+      addNotification("Base constructed!", "success")
+      return { ...prev, player: newPlayer }
+    })
+  }, [addNotification])
+
   const handleCraftItem = useCallback(
     (recipeId: keyof typeof CRAFTING_RECIPES) => {
       setGameState((prev) => {
@@ -2649,7 +2742,7 @@ export default function ArrakisGamePage() {
   }, [])
 
   const handleCreateTradeOffer = useCallback(
-    (inventoryIndex: number, price: number) => {
+    (inventoryIndex: number, resource: keyof Resources, price: number) => {
       setGameState((prev) => {
         const item = prev.inventory[inventoryIndex]
         if (!item) return prev
@@ -2662,9 +2755,17 @@ export default function ArrakisGamePage() {
           sellerColor: prev.player.color,
           item,
           price,
+          resource,
         } as TradeOffer
-        addNotification(`Listed ${item.name} for ${price} Solari.`, "success")
-        return { ...prev, inventory: newInventory, tradeOffers: [...prev.tradeOffers, offer] }
+        addNotification(
+          `Listed ${item.name} for ${price} ${resource}.`,
+          "success",
+        )
+        return {
+          ...prev,
+          inventory: newInventory,
+          tradeOffers: [...prev.tradeOffers, offer],
+        }
       })
     },
     [addNotification],
@@ -2676,8 +2777,8 @@ export default function ArrakisGamePage() {
         const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
         if (index === -1) return prev
         const offer = prev.tradeOffers[index]
-        if (offer.price > prev.resources.solari) {
-          addNotification("Not enough Solari to purchase!", "warning")
+        if (offer.price > prev.resources[offer.resource]) {
+          addNotification(`Not enough ${offer.resource} to purchase!`, "warning")
           return prev
         }
         const newInventory = [...prev.inventory]
@@ -2687,11 +2788,55 @@ export default function ArrakisGamePage() {
           return prev
         }
         newInventory[empty] = offer.item
-        const newResources = { ...prev.resources, solari: prev.resources.solari - offer.price }
+        const newResources = {
+          ...prev.resources,
+          [offer.resource]:
+            prev.resources[offer.resource] - offer.price,
+        }
         const newOffers = [...prev.tradeOffers]
         newOffers.splice(index, 1)
         addNotification(`Purchased ${offer.item.name}!`, "success")
         return { ...prev, inventory: newInventory, resources: newResources, tradeOffers: newOffers }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleEditTradeOffer = useCallback(
+    (offerId: string, resource: keyof Resources, price: number) => {
+      setGameState((prev) => {
+        const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
+        if (index === -1) return prev
+        const offer = prev.tradeOffers[index]
+        if (offer.sellerId !== prev.player.id) return prev
+        const newOffers = [...prev.tradeOffers]
+        newOffers[index] = { ...offer, price, resource }
+        addNotification(`Updated offer for ${offer.item.name}.`, "success")
+        return { ...prev, tradeOffers: newOffers }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleRemoveTradeOffer = useCallback(
+    (offerId: string) => {
+      setGameState((prev) => {
+        const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
+        if (index === -1) return prev
+        const offer = prev.tradeOffers[index]
+        if (offer.sellerId !== prev.player.id) return prev
+        const newOffers = [...prev.tradeOffers]
+        newOffers.splice(index, 1)
+        const newInventory = [...prev.inventory]
+        const empty = newInventory.findIndex((i) => i === null)
+        if (empty !== -1) {
+          newInventory[empty] = offer.item
+        } else {
+          addNotification("Inventory full!", "warning")
+          return { ...prev, tradeOffers: newOffers }
+        }
+        addNotification("Offer removed from market.", "success")
+        return { ...prev, tradeOffers: newOffers, inventory: newInventory }
       })
     },
     [addNotification],
@@ -2738,6 +2883,7 @@ export default function ArrakisGamePage() {
             onSellSpice={handleSellSpice}
             onMinePlasteel={handleMinePlasteel}
             onCollectWater={handleCollectWater}
+            onBuildBase={handleBuildBase}
           />
         </aside>
 
@@ -2779,6 +2925,12 @@ export default function ArrakisGamePage() {
                   onCellClick={handleMapCellClick}
                   zoom={zoom}
                   onZoomChange={setZoom}
+                  trackingTarget={
+                    gameState.trackingTargetId &&
+                    gameState.onlinePlayers[gameState.trackingTargetId]
+                      ? gameState.onlinePlayers[gameState.trackingTargetId].position
+                      : null
+                  }
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
@@ -2875,6 +3027,14 @@ export default function ArrakisGamePage() {
                 />
                 {/* WorldEventsPanel should show dynamic events */}
                 <WorldEventsPanel worldEvents={gameState.worldEvents} />
+                <BountyBoard
+                  onlinePlayers={gameState.onlinePlayers}
+                  bounties={gameState.bounties}
+                  resources={gameState.resources}
+                  onAddBounty={handleAddBounty}
+                  onTrack={handleTrackPlayer}
+                  trackingTargetId={gameState.trackingTargetId}
+                />
                 <TradePanel
                   player={gameState.player}
                   resources={gameState.resources}
@@ -2954,10 +3114,12 @@ export default function ArrakisGamePage() {
         tradeOffers={gameState.tradeOffers}
         inventory={gameState.inventory}
         playerId={gameState.player.id}
-        playerSolari={gameState.resources.solari}
+        playerResources={gameState.resources}
         onClose={handleCloseTradingModal}
         onCreateOffer={handleCreateTradeOffer}
         onBuyOffer={handleBuyTradeOffer}
+        onEditOffer={handleEditTradeOffer}
+        onRemoveOffer={handleRemoveTradeOffer}
       />
       <PauseModal
         isOpen={gameState.isPaused}

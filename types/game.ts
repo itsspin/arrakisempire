@@ -16,6 +16,7 @@ export interface Player {
   dodgeChance: number
   position: { x: number; y: number }
   basePosition: { x: number; y: number }
+  baseBuilt: boolean
   house: string | null
   rank: number
   rankName?: string
@@ -28,6 +29,7 @@ export interface Player {
   energyProductionRate: number
   created: number
   lastActive: number
+  bounty?: number
   investments?: Record<string, Investment>
   spicePerClick: number
   spiceClickUpgradeCost: number
@@ -203,6 +205,7 @@ export interface TradeOffer {
   sellerColor: string
   item: Item
   price: number
+  resource: keyof Resources
 }
 
 export interface Ability {
@@ -273,6 +276,8 @@ export interface GameState {
   // NEW: Timestamp when sandworm will attack if player stays idle
   sandwormAttackTime?: number | null
   lastSeekerLaunchTime?: number
+  bounties: Record<string, number>
+  trackingTargetId?: string | null
   quests: Quest[]
   completedQuests: Quest[]
 }

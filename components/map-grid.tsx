@@ -2,6 +2,8 @@
 
 import type { GameState, Player } from "@/types/game"
 import { CONFIG, HOUSE_COLORS } from "@/lib/constants"
+import { CONFIG } from "@/lib/constants"
+import { isInBaseArea } from "@/lib/utils"
 
 interface MapGridProps {
   player: Player
@@ -11,6 +13,7 @@ interface MapGridProps {
   onCellClick: (x: number, y: number) => void
   zoom?: number
   onZoomChange?: (zoom: number) => void
+  trackingTarget?: { x: number; y: number } | null
 }
 
 export function MapGrid({
@@ -21,9 +24,24 @@ export function MapGrid({
   onCellClick,
   zoom = 1,
   onZoomChange,
+  trackingTarget = null,
 }: MapGridProps) {
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
+
+  let arrow = ""
+  if (trackingTarget) {
+    const dx = trackingTarget.x - playerX
+    const dy = trackingTarget.y - playerY
+    if (Math.abs(dx) > Math.abs(dy)) {
+      arrow = dx > 0 ? "→" : "←"
+    } else if (Math.abs(dy) > Math.abs(dx)) {
+      arrow = dy > 0 ? "↓" : "↑"
+    } else if (dx > 0 && dy > 0) arrow = "↘"
+    else if (dx > 0 && dy < 0) arrow = "↗"
+    else if (dx < 0 && dy > 0) arrow = "↙"
+    else if (dx < 0 && dy < 0) arrow = "↖"
+  }
 
   const cells = []
   for (let dy = -radius; dy <= radius; dy++) {
@@ -85,11 +103,21 @@ export function MapGrid({
         if (territory.ownerId) hasBackground = true
       }
 
+      // Player base cells
+      if (isInBaseArea(player, x, y)) {
+        cellClass += " map-cell-base"
+        cellContent = "🏠"
+        cellTitle = "Your Base"
+        hasBackground = true
+      }
+
 
       // Enemies
       const enemy = mapData.enemies[key]
       if (enemy && cellContent === "") {
-        cellClass += enemy.boss ? " map-cell-boss" : enemy.special ? " map-cell-special-enemy" : " map-cell-enemy"
+        if (enemy.special) cellClass += " map-cell-special-enemy"
+        else if (enemy.boss) cellClass += " map-cell-boss"
+        else cellClass += " map-cell-enemy"
         cellContent = enemy.icon
         cellTitle = `${enemy.name} (Lv.${enemy.level})`
         hasBackground = true
@@ -164,12 +192,15 @@ export function MapGrid({
   }
 
   return (
-    <div
-      className="map-grid mx-auto overflow-x-auto"
-      style={gridStyle}
-      onWheel={handleWheel}
-    >
-      {cells}
+    <div className="relative">
+      {arrow && <div className="tracking-arrow">{arrow}</div>}
+      <div
+        className="map-grid mx-auto overflow-x-auto"
+        style={gridStyle}
+        onWheel={handleWheel}
+      >
+        {cells}
+      </div>
     </div>
   )
 }
