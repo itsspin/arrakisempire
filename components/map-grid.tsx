@@ -78,6 +78,15 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       }
 
 
+      // Seekers
+      const seeker = mapData.seekers[key]
+      if (seeker && cellContent === "") {
+        cellClass += " map-cell-seeker"
+        cellContent = "🛰️"
+        cellTitle = `Seeker from ${seeker.ownerName}`
+        hasBackground = true
+      }
+
       // World Events Markers (can be an overlay on the cell)
       const eventOnCell = worldEvents.find((e) => e.position?.x === x && e.position?.y === y)
       if (eventOnCell && cellContent === "") {
@@ -111,6 +120,11 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
           }
         >
           {playerLabel && <span className="player-name-label">{playerLabel}</span>}
+          {seeker && (
+            <span className="seeker-countdown">
+              {Math.max(0, Math.ceil((seeker.claimTime - Date.now()) / 1000))}
+            </span>
+          )}
           {cellContent}
         </div>,
       )
