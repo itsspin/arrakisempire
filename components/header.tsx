@@ -2,6 +2,8 @@
 
 import type { Player } from "@/types/game"
 import { STATIC_DATA } from "@/lib/game-data"
+import { signOut } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 
 interface HeaderProps {
   player: Player
@@ -40,6 +42,12 @@ export function Header({ player, isPaused, onTogglePause }: HeaderProps) {
             className="action-button px-2 py-1 text-xs md:text-sm"
           >
             {isPaused ? "Resume" : "Pause"}
+          </button>
+          <button
+            onClick={() => signOut(auth)}
+            className="action-button px-2 py-1 text-xs md:text-sm"
+          >
+            Logout
           </button>
           {/* Removed Trade, Houses, Events buttons - now in Multiplayer tab */}
         </div>
