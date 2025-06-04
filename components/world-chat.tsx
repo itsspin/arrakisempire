@@ -24,10 +24,6 @@ export function WorldChat({ messages, onSendMessage, playerName, playerColor }: 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [])
-
   const handleSend = (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault()
     if (inputMessage.trim()) {
