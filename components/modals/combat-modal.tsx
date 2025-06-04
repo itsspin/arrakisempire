@@ -13,7 +13,10 @@ interface CombatModalProps {
   onEnemyAttack: (damage: number, isDodge: boolean) => void
   onFlee: (success: boolean) => void
   onCombatEnd: (result: "win" | "lose" | "flee") => void
-  addNotification: (message: string, type?: "success" | "error" | "warning" | "info" | "legendary") => void
+  addNotification: (
+    message: string,
+    type?: "success" | "error" | "warning" | "info" | "legendary" | "mythic"
+  ) => void
   onActivateAbility: (ability: Ability) => void // New prop for activating abilities
   abilityCooldowns: Record<string, number> // New prop for ability cooldowns
   onDefend: () => void // New prop for defend action

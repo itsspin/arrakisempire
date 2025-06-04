@@ -1,7 +1,9 @@
 "use client"
 
 import type { GameState, Player } from "@/types/game"
+import { CONFIG, HOUSE_COLORS } from "@/lib/constants"
 import { CONFIG } from "@/lib/constants"
+import { isInBaseArea } from "@/lib/utils"
 
 interface MapGridProps {
   player: Player
@@ -10,11 +12,36 @@ interface MapGridProps {
   worldEvents: GameState["worldEvents"]
   onCellClick: (x: number, y: number) => void
   zoom?: number
+  onZoomChange?: (zoom: number) => void
+  trackingTarget?: { x: number; y: number } | null
 }
 
-export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellClick, zoom = 1 }: MapGridProps) {
+export function MapGrid({
+  player,
+  mapData,
+  onlinePlayers,
+  worldEvents,
+  onCellClick,
+  zoom = 1,
+  onZoomChange,
+  trackingTarget = null,
+}: MapGridProps) {
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
+
+  let arrow = ""
+  if (trackingTarget) {
+    const dx = trackingTarget.x - playerX
+    const dy = trackingTarget.y - playerY
+    if (Math.abs(dx) > Math.abs(dy)) {
+      arrow = dx > 0 ? "→" : "←"
+    } else if (Math.abs(dy) > Math.abs(dx)) {
+      arrow = dy > 0 ? "↓" : "↑"
+    } else if (dx > 0 && dy > 0) arrow = "↘"
+    else if (dx > 0 && dy < 0) arrow = "↗"
+    else if (dx < 0 && dy > 0) arrow = "↙"
+    else if (dx < 0 && dy < 0) arrow = "↖"
+  }
 
   const cells = []
   for (let dy = -radius; dy <= radius; dy++) {
@@ -29,6 +56,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       let cellTitle = `Desert (${x},${y})`
       let hasBackground = false
       let playerLabel: string | null = null
+      let houseIndicatorClass: string | null = null
 
       // Player
       if (x === playerX && y === playerY) {
@@ -37,6 +65,10 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         cellContent = "👤"
         cellTitle = `${player.name} (P${player.prestigeLevel}) - Your Position`
         playerLabel = player.name
+        if (player.house) {
+          const hc = HOUSE_COLORS[player.house as keyof typeof HOUSE_COLORS]
+          if (hc) houseIndicatorClass = `player-color-${hc}`
+        }
       }
       // Other players
       else {
@@ -49,6 +81,10 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
           cellContent = "👤"
           cellTitle = `${otherPlayerOnCell.name} (P${otherPlayerOnCell.prestigeLevel || 0})`
           playerLabel = otherPlayerOnCell.name
+          if (otherPlayerOnCell.house) {
+            const hc = HOUSE_COLORS[otherPlayerOnCell.house as keyof typeof HOUSE_COLORS]
+            if (hc) houseIndicatorClass = `player-color-${hc}`
+          }
         }
       }
 
@@ -67,11 +103,21 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         if (territory.ownerId) hasBackground = true
       }
 
+      // Player base cells
+      if (isInBaseArea(player, x, y)) {
+        cellClass += " map-cell-base"
+        cellContent = "🏠"
+        cellTitle = "Your Base"
+        hasBackground = true
+      }
+
 
       // Enemies
       const enemy = mapData.enemies[key]
       if (enemy && cellContent === "") {
-        cellClass += enemy.boss ? " map-cell-boss" : enemy.special ? " map-cell-special-enemy" : " map-cell-enemy"
+        if (enemy.special) cellClass += " map-cell-special-enemy"
+        else if (enemy.boss) cellClass += " map-cell-boss"
+        else cellClass += " map-cell-enemy"
         cellContent = enemy.icon
         cellTitle = `${enemy.name} (Lv.${enemy.level})`
         hasBackground = true
@@ -120,6 +166,7 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
           }
         >
           {playerLabel && <span className="player-name-label">{playerLabel}</span>}
+          {houseIndicatorClass && <span className={`house-indicator ${houseIndicatorClass}`} />}
           {seeker && (
             <span className="seeker-countdown">
               {Math.max(0, Math.ceil((seeker.claimTime - Date.now()) / 1000))}
@@ -136,9 +183,24 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
     "--map-columns": radius * 2 + 1,
   } as React.CSSProperties
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!onZoomChange) return
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    const newZoom = Math.min(2, Math.max(0.5, zoom + delta))
+    onZoomChange(Number(newZoom.toFixed(2)))
+  }
+
   return (
-    <div className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
-      {cells}
+    <div className="relative">
+      {arrow && <div className="tracking-arrow">{arrow}</div>}
+      <div
+        className="map-grid mx-auto overflow-x-auto"
+        style={gridStyle}
+        onWheel={handleWheel}
+      >
+        {cells}
+      </div>
     </div>
   )
 }

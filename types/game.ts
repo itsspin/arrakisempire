@@ -16,6 +16,7 @@ export interface Player {
   dodgeChance: number
   position: { x: number; y: number }
   basePosition: { x: number; y: number }
+  baseBuilt: boolean
   house: string | null
   rank: number
   rankName?: string
@@ -28,12 +29,15 @@ export interface Player {
   energyProductionRate: number
   created: number
   lastActive: number
+  bounty?: number
   investments?: Record<string, Investment>
   spicePerClick: number
   spiceClickUpgradeCost: number
   unlockedAbilities: Ability[]
   activeAbility: Ability | null
   isDefending: boolean
+  xpBuffMultiplier?: number
+  xpBuffExpires?: number | null
   // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
   // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
   equipment?: Equipment // Added for AI ranking
@@ -65,6 +69,8 @@ export interface Item {
   description: string
   dropChance?: number
   special?: string | null
+  effectType?: "heal" | "attack_boost"
+  effectValue?: number
 }
 
 export interface MapElement {
@@ -174,7 +180,7 @@ export interface WorldEvent extends MapElement {
   duration?: number
   endTime?: number
   type?: "economy" | "hazard" | "diplomacy" | "political" // For categorization
-  // NEW: For event chaining (e.g. Wormsign -> ShaiHuludAttack)
+  // NEW: For event chaining (e.g. Wormsign -> InfantSandwormAttack)
   triggersNext?: string // Key of the next event to trigger
   isChainedEvent?: boolean // If this event was triggered by another
   // NEW: For Sandworm attack target
@@ -192,6 +198,16 @@ export interface ChatMessage {
   message: string
 }
 
+export interface TradeOffer {
+  id: string
+  sellerId: string | null
+  sellerName: string
+  sellerColor: string
+  item: Item
+  price: number
+  resource: keyof Resources
+}
+
 export interface Ability {
   id: string
   name: string
@@ -202,6 +218,15 @@ export interface Ability {
   duration: number
   effectType: "attack_boost" | "defense_boost" | "crit_boost" | "dodge_boost" | "health_regen" | "energy_regen" | "stun"
   effectValue: number
+}
+
+export interface Quest {
+  id: string
+  description: string
+  type: "kill" | "territory" | "move"
+  goal: number
+  progress: number
+  completed: boolean
 }
 
 // Modified onlinePlayers to include full Player type and their own Resources
@@ -221,7 +246,7 @@ export interface GameState {
   // onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>> // Old
   onlinePlayers: Record<string, AIPlayer> // NEW: AIs have their own full Player state and Resources
   worldEvents: WorldEvent[]
-  tradeOffers: any[]
+  tradeOffers: TradeOffer[]
   map: {
     enemies: Record<string, Enemy>
     resources: Record<string, ResourceNode>
@@ -238,7 +263,11 @@ export interface GameState {
   isPrestigeModalOpen: boolean
   isAbilitySelectionModalOpen: boolean
   selectedTerritoryCoords: { x: number; y: number } | null
-  notifications: Array<{ id: string; message: string; type: "success" | "error" | "warning" | "info" | "legendary" }>
+  notifications: Array<{
+    id: string
+    message: string
+    type: "success" | "error" | "warning" | "info" | "legendary" | "mythic"
+  }>
   chatMessages: ChatMessage[]
   abilityCooldowns: Record<string, number>
   // NEW: Track last time AI and World Events were processed
@@ -251,6 +280,10 @@ export interface GameState {
   // NEW: Timestamp when sandworm will attack if player stays idle
   sandwormAttackTime?: number | null
   lastSeekerLaunchTime?: number
+  bounties: Record<string, number>
+  trackingTargetId?: string | null
+  quests: Quest[]
+  completedQuests: Quest[]
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"
