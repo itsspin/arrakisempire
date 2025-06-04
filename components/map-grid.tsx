@@ -183,18 +183,11 @@ export function MapGrid({
     "--map-columns": radius * 2 + 1,
   } as React.CSSProperties
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!onZoomChange) return
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.1 : 0.1
-    const newZoom = Math.min(2, Math.max(0.5, zoom + delta))
-    onZoomChange(Number(newZoom.toFixed(2)))
-  }
 
   return (
     <div className="relative">
       {arrow && <div className="tracking-arrow">{arrow}</div>}
-      <div className="map-grid mx-auto overflow-x-auto" style={gridStyle} onWheel={handleWheel}>
+      <div className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
         {cells}
       </div>
     </div>
