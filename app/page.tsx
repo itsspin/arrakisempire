@@ -26,6 +26,8 @@ import { AbilitySelectionModal } from "@/components/modals/ability-selection-mod
 import { TradePanel } from "@/components/trade-panel"
 import { UpdatesTab } from "@/components/updates-tab"
 import { Slider } from "@/components/ui/slider"
+import { PauseModal } from "@/components/modals/pause-modal"
+import { SandwormWarning } from "@/components/sandworm-warning"
 
 import type {
   GameState,
@@ -325,6 +327,8 @@ const initialGameState: GameState = {
   lastAIProcessingTime: 0, // NEW
   lastWorldEventProcessingTime: 0, // NEW
   capturingTerritoryId: null,
+  isPaused: false,
+  sandwormAttackTime: null,
   lastSeekerLaunchTime: 0,
 }
 
@@ -1231,6 +1235,7 @@ export default function ArrakisGamePage() {
         return
 
       setGameState((prev) => {
+        if (prev.isPaused) return prev
         const now = Date.now()
         const newPlayer = { ...prev.player }
         const newResources = { ...prev.resources }
@@ -1679,6 +1684,37 @@ export default function ArrakisGamePage() {
           // newPlayer.lastActive = now; // If linked to player activity, but for general tick, this is not needed.
         }
 
+        // Idle sandworm warning and attack
+        const idleTime = now - newPlayer.lastActive
+        if (!sandwormAttackTime && idleTime >= CONFIG.IDLE_TIME_BEFORE_WORM) {
+          sandwormAttackTime = now + CONFIG.SANDWORM_COUNTDOWN
+          newNotifications.push({
+            id: now.toString(),
+            message: "Wormsign! Move or be eaten soon!",
+            type: "warning",
+          })
+        }
+        if (sandwormAttackTime && idleTime < CONFIG.IDLE_TIME_BEFORE_WORM) {
+          sandwormAttackTime = null
+        }
+        if (sandwormAttackTime && now >= sandwormAttackTime) {
+          const ownedKeys = [...newPlayer.territories.map((t) => `${t.position.x},${t.position.y}`)]
+          const removeCount = Math.max(1, Math.floor(ownedKeys.length * 0.2))
+          for (let i = 0; i < removeCount && ownedKeys.length > 0; i++) {
+            const idx = getRandomInt(0, ownedKeys.length - 1)
+            const terrKey = ownedKeys.splice(idx, 1)[0]
+            const terr = newMap.territories[terrKey]
+            if (terr) {
+              newMap.territories[terrKey] = { ...terr, ownerId: null, ownerName: undefined, ownerColor: undefined }
+              newPlayer.territories = newPlayer.territories.filter((t) => t.id !== terr.id)
+            }
+          }
+          newPlayer.position = { ...newPlayer.basePosition }
+          newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
+          newNotifications.push({ id: (now + 1).toString(), message: "A sandworm devours you!", type: "legendary" })
+          sandwormAttackTime = null
+        }
+
         // --- Update player rank, ability cooldowns (existing logic) ---
         for (const abilityId in newAbilityCooldowns) {
           if (newAbilityCooldowns[abilityId] <= now) {
@@ -1763,6 +1799,7 @@ export default function ArrakisGamePage() {
           leaderboard: updatedLeaderboard, // Use the newly calculated leaderboard
           abilityCooldowns: newAbilityCooldowns,
           notifications: newNotifications, // Persist notifications from this tick
+          sandwormAttackTime,
         }
       })
     }, 1000) // Main game tick interval (1 second)
@@ -1813,12 +1850,17 @@ export default function ArrakisGamePage() {
     (targetX: number, targetY: number) => {
       setGameState((prev) => {
         // Ensure we are not in a blocking modal
+        if (prev.isPaused) {
+          addNotification("Game is paused!", "warning")
+          return prev
+        }
         if (prev.isCombatModalOpen || prev.isAbilitySelectionModalOpen) {
           addNotification("Cannot perform action during active modal!", "warning")
           return prev
         }
 
         const { player, resources, map, onlinePlayers } = prev // Include onlinePlayers
+        let sandwormAttackTime = prev.sandwormAttackTime
         const dx = targetX - player.position.x
         const dy = targetY - player.position.y
         const key = `${targetX},${targetY}`
@@ -1906,6 +1948,8 @@ export default function ArrakisGamePage() {
         if (isMoving) {
           newPlayer.position = { x: targetX, y: targetY }
           newResources.water -= waterCost
+          newPlayer.lastActive = Date.now()
+          sandwormAttackTime = null
         }
 
         // Interaction logic (enemy, resource, item) remains largely the same
@@ -1950,6 +1994,7 @@ export default function ArrakisGamePage() {
             ...prev,
             player: { ...newPlayer, isDefending: false },
             resources: newResources,
+            sandwormAttackTime,
             isCombatModalOpen: true,
             combat: {
               active: true,
@@ -1973,7 +2018,14 @@ export default function ArrakisGamePage() {
           if (owner) {
             if (player.house && owner.house === player.house) {
               addNotification("You cannot attack a member of your own house!", "warning")
-              return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
+              return {
+                ...prev,
+                player: newPlayer,
+                resources: newResources,
+                map: newMap,
+                inventory: updatedInventory,
+                sandwormAttackTime,
+              }
             }
             const enemyOwner: Enemy = {
               id: `owner_${owner.id}`,
@@ -1998,6 +2050,7 @@ export default function ArrakisGamePage() {
               ...prev,
               player: { ...newPlayer, isDefending: false },
               resources: newResources,
+              sandwormAttackTime,
               isCombatModalOpen: true,
               capturingTerritoryId: key,
               combat: {
@@ -2015,7 +2068,14 @@ export default function ArrakisGamePage() {
           }
         }
 
-        return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
+        return {
+          ...prev,
+          player: newPlayer,
+          resources: newResources,
+          map: newMap,
+          inventory: updatedInventory,
+          sandwormAttackTime,
+        }
       })
     },
     [addNotification, handleCombatEnd],
@@ -2032,7 +2092,8 @@ export default function ArrakisGamePage() {
         gameStateRef.current.isNameModalOpen ||
         gameStateRef.current.isHouseModalOpen ||
         gameStateRef.current.isPrestigeModalOpen ||
-        gameStateRef.current.isAbilitySelectionModalOpen
+        gameStateRef.current.isAbilitySelectionModalOpen ||
+        gameStateRef.current.isPaused
       )
         return
       if (document.activeElement && ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
@@ -2419,7 +2480,13 @@ export default function ArrakisGamePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header player={gameState.player} />
+      <Header
+        player={gameState.player}
+        isPaused={gameState.isPaused}
+        onTogglePause={() =>
+          setGameState((prev) => ({ ...prev, isPaused: !prev.isPaused }))
+        }
+      />
       <Navigation currentTab={gameState.currentTab} onTabChange={handleTabChange} />
       <NotificationArea
         notifications={gameState.notifications}
@@ -2641,6 +2708,17 @@ export default function ArrakisGamePage() {
         onClose={handleCloseAbilitySelectionModal} // Add a close handler
         onSelect={handleSelectAbility}
         availableAbilities={availableAbilitiesForSelection}
+      />
+      <PauseModal
+        isOpen={gameState.isPaused}
+        onResume={() => setGameState((prev) => ({ ...prev, isPaused: false }))}
+      />
+      <SandwormWarning
+        timeLeft={
+          gameState.sandwormAttackTime
+            ? gameState.sandwormAttackTime - Date.now()
+            : 0
+        }
       />
     </div>
   )

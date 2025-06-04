@@ -43,6 +43,8 @@ export const CONFIG = {
   TERRITORY_CAPTURE_THRESHOLD: 3, // Number of failed attempts before territory becomes purchasable
   RANDOM_TERRITORY_PURCHASE_COST: 5000, // Base cost for buying a random territory
   OWNED_TERRITORY_COST_MULTIPLIER: 5, // Multiplier if the random territory is already owned
+  IDLE_TIME_BEFORE_WORM: 120000, // 2 minutes of inactivity before warning
+  SANDWORM_COUNTDOWN: 10000, // Countdown duration after warning
   SEEKER_COST: 5000,
   SEEKER_COOLDOWN: 60000,
 }
