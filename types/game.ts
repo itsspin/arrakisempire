@@ -263,7 +263,11 @@ export interface GameState {
   isPrestigeModalOpen: boolean
   isAbilitySelectionModalOpen: boolean
   selectedTerritoryCoords: { x: number; y: number } | null
-  notifications: Array<{ id: string; message: string; type: "success" | "error" | "warning" | "info" | "legendary" }>
+  notifications: Array<{
+    id: string
+    message: string
+    type: "success" | "error" | "warning" | "info" | "legendary" | "mythic"
+  }>
   chatMessages: ChatMessage[]
   abilityCooldowns: Record<string, number>
   // NEW: Track last time AI and World Events were processed

@@ -93,6 +93,7 @@ export const RARITY_SCORES = {
   rare: 3,
   epic: 4,
   legendary: 5,
+  mythic: 6,
 }
 
 export const CRAFTING_RECIPES = {
