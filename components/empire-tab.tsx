@@ -240,11 +240,19 @@ export function EmpireTab({
         <h4 className="text-lg font-semibold text-amber-300 mb-2">Territory Perks</h4>
         {player.territories.length > 0 ? (
           <ul className="list-disc list-inside text-sm text-stone-300 space-y-1">
-            {player.territories
-              .flatMap((t) => t.perks)
-              .map((perk, i) => (
-                <li key={i}>{perk}</li>
-              ))}
+            {Object.entries(
+              player.territories
+                .flatMap((t) => t.perks)
+                .reduce((acc: Record<string, number>, perk) => {
+                  acc[perk] = (acc[perk] || 0) + 1
+                  return acc
+                }, {}),
+            ).map(([perk, count]) => (
+              <li key={perk}>
+                {perk}
+                {count > 1 ? ` (x${count})` : ""}
+              </li>
+            ))}
           </ul>
         ) : (
           <p className="text-sm text-stone-400">Acquire territories to gain passive bonuses to your empire.</p>
