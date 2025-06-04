@@ -99,5 +99,9 @@ export const RARITY_SCORES = {
 export const CRAFTING_RECIPES = {
   healingStim: { plasteel: 10, rareMaterials: 2, melange: 1 },
   battleStim: { plasteel: 15, rareMaterials: 3, melange: 2 },
+  xpPotion: { plasteel: 5, rareMaterials: 2, melange: 2 },
+  healthPotion: { plasteel: 8, rareMaterials: 2, melange: 1 },
+  bandage: { plasteel: 4, rareMaterials: 1, melange: 0 },
+  attackPotion: { plasteel: 12, rareMaterials: 3, melange: 2 },
 }
 
