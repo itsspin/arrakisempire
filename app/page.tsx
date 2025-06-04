@@ -551,8 +551,13 @@ export default function ArrakisGamePage() {
               // Give each AI 2 random territories
               const unownedTerritories = Object.values(newGameState.map.territories).filter((t) => !t.ownerId)
               if (unownedTerritories.length > 0) {
-                const terrToClaim = unownedTerritories[getRandomInt(0, unownedTerritories.length - 1)]
-                const key = `${terrToClaim.position.x},${terrToClaim.position.y}`
+                const terrToClaim =
+                  unownedTerritories[
+                    getRandomInt(0, unownedTerritories.length - 1)
+                  ]
+                const key = terrToClaim.position
+                  ? `${terrToClaim.position.x},${terrToClaim.position.y}`
+                  : `${terrToClaim.x},${terrToClaim.y}`
                 newGameState.map.territories[key] = {
                   ...terrToClaim,
                   ownerId: ai.id,
@@ -739,7 +744,9 @@ export default function ArrakisGamePage() {
             }
           }
         })
-        const enemyKey = `${enemyInstance.position.x},${enemyInstance.position.y}`
+        const enemyKey = enemyInstance.position
+          ? `${enemyInstance.position.x},${enemyInstance.position.y}`
+          : `${enemyInstance.x},${enemyInstance.y}`
         if (newMap.enemies[enemyKey]) {
           delete newMap.enemies[enemyKey]
         }
@@ -782,8 +789,10 @@ export default function ArrakisGamePage() {
         directions.forEach((dx) => {
           directions.forEach((dy) => {
             if (dx === 0 && dy === 0) return
-            const tx = enemyInstance.position.x + dx
-            const ty = enemyInstance.position.y + dy
+            const tx =
+              (enemyInstance.position?.x ?? enemyInstance.x) + dx
+            const ty =
+              (enemyInstance.position?.y ?? enemyInstance.y) + dy
             if (tx < 0 || tx >= CONFIG.MAP_SIZE || ty < 0 || ty >= CONFIG.MAP_SIZE) return
             const tKey = `${tx},${ty}`
             const terr = newMap.territories[tKey]
@@ -1139,7 +1148,9 @@ export default function ArrakisGamePage() {
           if (unownedTerritories.length > 0) {
             const terrToClaim =
               unownedTerritories[getRandomInt(0, unownedTerritories.length - 1)]
-            const key = `${terrToClaim.position.x},${terrToClaim.position.y}`
+            const key = terrToClaim.position
+              ? `${terrToClaim.position.x},${terrToClaim.position.y}`
+              : `${terrToClaim.x},${terrToClaim.y}`
             newMapTerritories[key] = {
               ...terrToClaim,
               ownerId: ai.id,
@@ -1354,7 +1365,12 @@ export default function ArrakisGamePage() {
         }
 
         newPlayer.territories.forEach((t) => {
-          const territoryDetail = newMap.territories[`${t.position.x},${t.position.y}`]
+          const territoryKey = t.position
+            ? `${t.position.x},${t.position.y}`
+            : null
+          const territoryDetail = territoryKey
+            ? newMap.territories[territoryKey]
+            : undefined
           if (territoryDetail && !territoryDetail.isDestroyed) {
             // Check if not destroyed
             if (t.resourceYield?.solari) newResources.solari += t.resourceYield.solari
@@ -1460,7 +1476,9 @@ export default function ArrakisGamePage() {
                     const ownedTerritories = allTerritories.filter((t) => t.ownerId)
                     if (ownedTerritories.length > 0) {
                       const targetTerr = ownedTerritories[getRandomInt(0, ownedTerritories.length - 1)]
-                      const targetKey = `${targetTerr.position.x},${targetTerr.position.y}`
+                      const targetKey = targetTerr.position
+                        ? `${targetTerr.position.x},${targetTerr.position.y}`
+                        : `${targetTerr.x},${targetTerr.y}`
                       newMap.territories[targetKey].isDestroyed = true
                       newMap.territories[targetKey].destroyedUntil = now + 180000 // Destroyed for 3 mins
                       newChainedEvent.description = `${newChainedEvent.name} targets Sector ${targetTerr.name || targetKey}! Buildings and units are lost!`
@@ -1469,8 +1487,8 @@ export default function ArrakisGamePage() {
                       // Remove units/enemies from this territory (simplified)
                       Object.keys(newMap.enemies).forEach((ekey) => {
                         if (
-                          newMap.enemies[ekey].position.x === targetTerr.position.x &&
-                          newMap.enemies[ekey].position.y === targetTerr.position.y
+                          newMap.enemies[ekey].position?.x === targetTerr.position?.x &&
+                          newMap.enemies[ekey].position?.y === targetTerr.position?.y
                         ) {
                           delete newMap.enemies[ekey]
                         }
@@ -1574,7 +1592,10 @@ export default function ArrakisGamePage() {
 
             // Simple passive Solari income for AIs based on their territories
             ai.territories.forEach((terr) => {
-              const territoryDetail = newMap.territories[`${terr.position.x},${terr.position.y}`]
+              const terrKey = terr.position
+                ? `${terr.position.x},${terr.position.y}`
+                : `${terr.x},${terr.y}`
+              const territoryDetail = newMap.territories[terrKey]
               if (territoryDetail && !territoryDetail.isDestroyed) {
                 ai.resources.solari +=
                   (territoryDetail.resourceYield?.solari || 0) * (AI_CONFIG.PROCESSING_INTERVAL / 1000)
@@ -1598,22 +1619,28 @@ export default function ArrakisGamePage() {
               ] // N, S, E, W
 
               // Find adjacent neutral territories
-              const ownedTerritoryCoords = new Set(ai.territories.map((t) => `${t.position.x},${t.position.y}`))
+              const ownedTerritoryCoords = new Set(
+                ai.territories
+                  .filter((t) => t.position)
+                  .map((t) => `${t.position!.x},${t.position!.y}`)
+              )
               if (ai.territories.length === 0) {
                 // If AI has no territories, pick any neutral one near its start
                 const nearbyNeutrals = Object.values(newMap.territories).filter(
                   (t) =>
                     !t.ownerId &&
-                    Math.abs(t.position.x - ai.position.x) < 5 &&
-                    Math.abs(t.position.y - ai.position.y) < 5,
+                    Math.abs(t.position.x - (ai.position?.x ?? ai.x)) < 5 &&
+                    Math.abs(t.position.y - (ai.position?.y ?? ai.y)) < 5,
                 )
                 if (nearbyNeutrals.length > 0)
                   potentialTargets.push(nearbyNeutrals[getRandomInt(0, nearbyNeutrals.length - 1)])
               } else {
                 ai.territories.forEach((ownedTerr) => {
                   directions.forEach((dir) => {
-                    const checkX = ownedTerr.position.x + dir[0]
-                    const checkY = ownedTerr.position.y + dir[1]
+                    const checkX =
+                      (ownedTerr.position?.x ?? ownedTerr.x) + dir[0]
+                    const checkY =
+                      (ownedTerr.position?.y ?? ownedTerr.y) + dir[1]
                     if (checkX >= 0 && checkX < CONFIG.MAP_SIZE && checkY >= 0 && checkY < CONFIG.MAP_SIZE) {
                       const targetKey = `${checkX},${checkY}`
                       const targetTerr = newMap.territories[targetKey]
@@ -1630,7 +1657,9 @@ export default function ArrakisGamePage() {
                 const cost = targetTerritory.purchaseCost * AI_CONFIG.TERRITORY_CLAIM_COST_MULTIPLIER
                 if (ai.resources.solari >= cost) {
                   ai.resources.solari -= cost
-                  const key = `${targetTerritory.position.x},${targetTerritory.position.y}`
+                  const key = targetTerritory.position
+                    ? `${targetTerritory.position.x},${targetTerritory.position.y}`
+                    : `${targetTerritory.x},${targetTerritory.y}`
                   newMap.territories[key] = {
                     ...targetTerritory,
                     ownerId: ai.id,
@@ -1664,7 +1693,9 @@ export default function ArrakisGamePage() {
               newMap.territories[sKey] = updatedTerr
               if (seeker.ownerId === newPlayer.id) {
                 const alreadyOwned = newPlayer.territories.find(
-                  (t) => t.position.x === updatedTerr.position.x && t.position.y === updatedTerr.position.y,
+                  (t) =>
+                    t.position?.x === updatedTerr.position.x &&
+                    t.position?.y === updatedTerr.position.y,
                 )
                 if (!alreadyOwned) newPlayer.territories.push(updatedTerr)
                 addNotification(`Your Seeker claimed ${terr.name || sKey}!`, "success")
@@ -1711,7 +1742,9 @@ export default function ArrakisGamePage() {
                       !newMap.resources[targetCellKey] &&
                       !newMap.items[targetCellKey] &&
                       !(newPlayer.position.x === nextX && newPlayer.position.y === nextY) &&
-                      !Object.values(newOnlinePlayers).some((p) => p.position.x === nextX && p.position.y === nextY) &&
+                      !Object.values(newOnlinePlayers).some(
+                        (p) => p.position?.x === nextX && p.position?.y === nextY,
+                      ) &&
                       !newMap.territories[targetCellKey].isDestroyed
                     ) {
                       possibleMoves.push({ x: nextX, y: nextY })
@@ -1772,7 +1805,11 @@ export default function ArrakisGamePage() {
           sandwormAttackTime = null
         }
         if (sandwormAttackTime && now >= sandwormAttackTime) {
-          const ownedKeys = [...newPlayer.territories.map((t) => `${t.position.x},${t.position.y}`)]
+          const ownedKeys = [
+            ...newPlayer.territories
+              .filter((t) => t.position)
+              .map((t) => `${t.position!.x},${t.position!.y}`),
+          ]
           const removeCount = Math.max(1, Math.floor(ownedKeys.length * 0.2))
           for (let i = 0; i < removeCount && ownedKeys.length > 0; i++) {
             const idx = getRandomInt(0, ownedKeys.length - 1)
@@ -1943,7 +1980,7 @@ export default function ArrakisGamePage() {
 
         // Check for AI player on the target cell
         const aiPlayerOnCell = Object.values(onlinePlayers).find(
-          (ai) => ai.position.x === targetX && ai.position.y === targetY,
+          (ai) => ai.position?.x === targetX && ai.position?.y === targetY,
         )
 
         const isMoving = dx !== 0 || dy !== 0
@@ -2313,12 +2350,14 @@ export default function ArrakisGamePage() {
       }
       newMap.territories[randomKey] = updatedTerritory
       const alreadyOwned = newPlayer.territories.find(
-        (t) => t.position.x === updatedTerritory.position.x && t.position.y === updatedTerritory.position.y,
+        (t) =>
+          t.position?.x === updatedTerritory.position.x &&
+          t.position?.y === updatedTerritory.position.y,
       )
       if (!alreadyOwned) newPlayer.territories = [...newPlayer.territories, updatedTerritory]
       else {
         newPlayer.territories = newPlayer.territories.map((t) =>
-          t.position.x === updatedTerritory.position.x && t.position.y === updatedTerritory.position.y
+          t.position?.x === updatedTerritory.position.x && t.position?.y === updatedTerritory.position.y
             ? updatedTerritory
             : t,
         )
