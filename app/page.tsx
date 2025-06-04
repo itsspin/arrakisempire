@@ -2913,7 +2913,10 @@ export default function ArrakisGamePage() {
       <Header
         player={gameState.player}
         isPaused={gameState.isPaused}
-        onTogglePause={() => setGameState((prev) => ({ ...prev, isPaused: !prev.isPaused }))}
+        onTogglePause={() =>
+          setGameState((prev) => ({ ...prev, isPaused: !prev.isPaused }))
+        }
+        onlinePlayerCount={Object.keys(gameState.onlinePlayers).length + 1}
       />
       <Navigation currentTab={gameState.currentTab} onTabChange={handleTabChange} />
       <NotificationArea

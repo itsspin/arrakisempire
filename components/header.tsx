@@ -10,10 +10,11 @@ interface HeaderProps {
   player: Player
   isPaused: boolean
   onTogglePause: () => void
+  onlinePlayerCount: number
   // Removed onTradeClick, onOpenHousesModal, onOpenWorldEventsModal
 }
 
-export function Header({ player, isPaused, onTogglePause }: HeaderProps) {
+export function Header({ player, isPaused, onTogglePause, onlinePlayerCount }: HeaderProps) {
   const house = player.house ? STATIC_DATA.HOUSES[player.house] : null
 
   return (
@@ -37,6 +38,10 @@ export function Header({ player, isPaused, onTogglePause }: HeaderProps) {
           <div className="text-sm">
             <span className="text-stone-400">Prestige:</span>
             <span className="font-bold text-purple-400 prestige-glow ml-1">{player.prestigeLevel}</span>
+          </div>
+          <div className="text-sm">
+            <span className="text-stone-400">Online:</span>
+            <span className="font-bold text-green-400 ml-1">{onlinePlayerCount}</span>
           </div>
           <button
             onClick={onTogglePause}
