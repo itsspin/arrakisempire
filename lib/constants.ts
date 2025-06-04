@@ -1,4 +1,4 @@
-import type { PlayerColor } from "@/types/game";
+import type { PlayerColor } from "@/types/game"
 
 export const CONFIG = {
   MAP_SIZE: 200,
@@ -55,24 +55,16 @@ export const CONFIG = {
   XP_GAIN_GATHER: 2,
   XP_GAIN_BUILD_BASE: 10,
   XP_GAIN_CRAFT: 5,
-};
+  BASE_RADIUS: 2, // New constant for base area
+}
 
-export const PLAYER_COLORS = [
-  "red",
-  "blue",
-  "green",
-  "purple",
-  "orange",
-  "pink",
-  "yellow",
-  "cyan",
-];
+export const PLAYER_COLORS = ["red", "blue", "green", "purple", "orange", "pink", "yellow", "cyan"]
 
 export const HOUSE_COLORS: Record<string, PlayerColor> = {
   atreides: "blue",
   harkonnen: "red",
   fremen: "green",
-};
+}
 
 export const DUNE_QUOTES = [
   "Fear is the mind-killer.",
@@ -85,7 +77,7 @@ export const DUNE_QUOTES = [
   "Without change, something sleeps inside us, and seldom awakens.",
   "The future remains uncertain and so it should, for it is the canvas upon which we paint our desires.",
   "Bless the Maker and His water. Bless the coming and going of Him.",
-];
+]
 
 export const RARITY_SCORES = {
   common: 1,
@@ -104,4 +96,3 @@ export const CRAFTING_RECIPES = {
   bandage: { plasteel: 4, rareMaterials: 1, melange: 0 },
   attackPotion: { plasteel: 12, rareMaterials: 3, melange: 2 },
 }
-
