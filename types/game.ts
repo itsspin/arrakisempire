@@ -204,6 +204,15 @@ export interface Ability {
   effectValue: number
 }
 
+export interface Quest {
+  id: string
+  description: string
+  type: "kill" | "territory" | "move"
+  goal: number
+  progress: number
+  completed: boolean
+}
+
 // Modified onlinePlayers to include full Player type and their own Resources
 export type AIPlayer = Player & { resources: Resources }
 
@@ -251,6 +260,8 @@ export interface GameState {
   // NEW: Timestamp when sandworm will attack if player stays idle
   sandwormAttackTime?: number | null
   lastSeekerLaunchTime?: number
+  quests: Quest[]
+  completedQuests: Quest[]
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"

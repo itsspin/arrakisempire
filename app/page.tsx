@@ -17,6 +17,7 @@ import { HouseSelectionModal } from "@/components/modals/house-selection-modal"
 import { ActionsPanel } from "@/components/actions-panel"
 import { Leaderboard } from "@/components/leaderboard"
 import { PlayerStatsPanel } from "@/components/player-stats-panel"
+import { QuestPanel } from "@/components/quest-panel"
 import { HousesPanel } from "@/components/houses-panel"
 import { WorldEventsPanel } from "@/components/world-events-panel"
 import { PrestigeModal } from "@/components/modals/prestige-modal"
@@ -43,6 +44,7 @@ import type {
   WorldEvent, // Added WorldEvent
   AIPlayer, // Added AIPlayer
   PlayerColor,
+  Quest,
 } from "@/types/game"
 import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
@@ -63,6 +65,39 @@ const getRandomMapCoords = (mapWidth = CONFIG.MAP_SIZE, mapHeight = CONFIG.MAP_S
   const y = getRandomInt(0, mapHeight - 1)
   return { x, y }
 }
+
+// ---- Quest Generation ----
+const createRandomQuest = (): Quest => {
+  const types: Quest["type"][] = ["kill", "territory", "move"]
+  const type = types[getRandomInt(0, types.length - 1)]
+  let goal = 1
+  switch (type) {
+    case "kill":
+      goal = getRandomInt(3, 8)
+      break
+    case "territory":
+      goal = getRandomInt(1, 4)
+      break
+    case "move":
+      goal = getRandomInt(10, 30)
+      break
+  }
+  const descriptions = {
+    kill: `Defeat ${goal} enemies`,
+    territory: `Acquire ${goal} territories`,
+    move: `Travel ${goal} tiles`,
+  }
+  return {
+    id: `quest_${Date.now()}_${Math.random()}`,
+    description: descriptions[type],
+    type,
+    goal,
+    progress: 0,
+    completed: false,
+  }
+}
+
+const generateInitialQuests = () => [createRandomQuest(), createRandomQuest()]
 // --- MOCK DATA GENERATION (mostly unchanged, but AIs will get resources) ---
 const generateMockLeaderboard = (): RankedPlayer[] => {
   // This will be dynamically generated in the game tick now
@@ -324,6 +359,8 @@ const initialGameState: GameState = {
   notifications: [],
   chatMessages: [],
   abilityCooldowns: {},
+  quests: generateInitialQuests(),
+  completedQuests: [],
   lastAIProcessingTime: 0, // NEW
   lastWorldEventProcessingTime: 0, // NEW
   capturingTerritoryId: null,
@@ -442,6 +479,33 @@ export default function ArrakisGamePage() {
     lastGeneralNotificationTime.current = now
   }, [])
 
+  const updateQuestProgress = useCallback((type: Quest["type"], amount = 1) => {
+    setGameState((prev) => {
+      let quests = prev.quests.map((q) => {
+        if (!q.completed && q.type === type) {
+          const progress = q.progress + amount
+          const completed = progress >= q.goal
+          if (completed) {
+            addNotification(`Quest completed: ${q.description}`, "success")
+          }
+          return { ...q, progress: Math.min(progress, q.goal), completed }
+        }
+        return q
+      })
+      const newlyCompleted = quests.filter((q) => q.completed)
+      const completedQuests = [
+        ...prev.completedQuests,
+        ...newlyCompleted.filter((q) => !prev.completedQuests.find((c) => c.id === q.id)),
+      ]
+      quests = quests.filter((q) => !q.completed)
+      const newQuests = quests.slice()
+      newlyCompleted.forEach(() => {
+        newQuests.push(createRandomQuest())
+      })
+      return { ...prev, quests: newQuests, completedQuests }
+    })
+  }, [addNotification])
+
   // --- GAME INITIALIZATION (Firebase loading, etc.) ---
   useEffect(() => {
     const initGame = async () => {
@@ -519,6 +583,8 @@ export default function ArrakisGamePage() {
             activeAbility: savedState.player.activeAbility || null,
             isDefending: savedState.player.isDefending || false,
             abilityCooldowns: savedState.abilityCooldowns || {},
+            quests: savedState.quests || generateInitialQuests(),
+            completedQuests: savedState.completedQuests || [],
             lastAIProcessingTime: Date.now(), // Initialize processing times
             lastWorldEventProcessingTime: Date.now(),
           }))
@@ -537,6 +603,8 @@ export default function ArrakisGamePage() {
             isNameModalOpen: true,
             gameInitialized: false,
             abilityCooldowns: {},
+            quests: generateInitialQuests(),
+            completedQuests: [],
             lastAIProcessingTime: Date.now(),
             lastWorldEventProcessingTime: Date.now(),
           }
@@ -686,6 +754,7 @@ export default function ArrakisGamePage() {
         }
         newPlayer.experience += xpGained
         newPlayer.totalEnemiesDefeated += 1 // Increment total enemies defeated
+        updateQuestProgress("kill")
         if (newPlayer.experience >= newPlayer.experienceToNext) {
           newPlayer.level++
           newPlayer.experience -= newPlayer.experienceToNext
@@ -756,6 +825,7 @@ export default function ArrakisGamePage() {
               )
             }
             addNotification(`You captured ${terr.name || terrKey}!`, "success")
+            updateQuestProgress("territory")
           }
         }
 
@@ -780,6 +850,7 @@ export default function ArrakisGamePage() {
               }
               if (!newPlayer.territories.find((t) => t.id === terr.id)) {
                 newPlayer.territories.push(newMap.territories[tKey])
+                updateQuestProgress("territory")
               }
               if (
                 prevOwner &&
@@ -1931,6 +2002,7 @@ export default function ArrakisGamePage() {
           newResources.water -= waterCost
           newPlayer.lastActive = Date.now()
           sandwormAttackTime = null
+          updateQuestProgress("move")
         }
 
         // Interaction logic (enemy, resource, item) remains largely the same
@@ -2174,6 +2246,8 @@ export default function ArrakisGamePage() {
         newMap.territories[territoryId] = updatedTerritory
         newPlayer.territories = [...newPlayer.territories, updatedTerritory] // Add to player's owned territories
 
+        updateQuestProgress("territory")
+
         addNotification(`Territory ${territory.name || territoryId} purchased!`, "success")
 
         return {
@@ -2230,6 +2304,8 @@ export default function ArrakisGamePage() {
             : t,
         )
       }
+
+      updateQuestProgress("territory")
 
       addNotification(`Purchased ${territory.name || randomKey} for ${finalCost.toLocaleString()} Solari!`, "success")
 
@@ -2570,6 +2646,7 @@ export default function ArrakisGamePage() {
               </div>
               <aside className="w-full xl:w-80 bg-gradient-to-b from-stone-800 to-stone-900 border-l-2 border-blue-600 flex flex-col p-4 space-y-4 overflow-y-auto shadow-lg mt-6 xl:mt-0 xl:ml-6 order-3">
                 <PlayerStatsPanel player={gameState.player} />
+                <QuestPanel quests={gameState.quests} />
               </aside>
             </div>
           )}
