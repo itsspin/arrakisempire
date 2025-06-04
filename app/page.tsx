@@ -54,7 +54,8 @@ import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS, CRAFTING_RECIPES } 
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
-import { signInAnonymously } from "firebase/auth"
+import { onAuthStateChanged } from "firebase/auth"
+import { LoginForm } from "@/components/login-form"
 
 import { initialVentures as empireInitialVentures } from "@/components/empire-tab"
 
@@ -415,6 +416,12 @@ export default function ArrakisGamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
   const [zoom, setZoom] = useState(1.2)
+  const [user, setUser] = useState(() => auth.currentUser)
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u))
+    return () => unsub()
+  }, [])
 
   const lastGeneralNotificationTime = useRef(0)
   const GENERAL_NOTIFICATION_COOLDOWN = 1000
@@ -491,11 +498,11 @@ export default function ArrakisGamePage() {
   // --- GAME INITIALIZATION (Firebase loading, etc.) ---
   useEffect(() => {
     const initGame = async () => {
+      if (!user) return
       console.log("Initializing game...")
       setIsLoading(true)
       try {
-        const userCredential = await signInAnonymously(auth)
-        const userId = userCredential.user.uid
+        const userId = user.uid
 
         const playerDocRef = doc(db, "players", userId)
         const playerDocSnap = await getDoc(playerDocRef)
@@ -635,7 +642,7 @@ export default function ArrakisGamePage() {
       }
     }
     initGame()
-  }, [])
+  }, [user])
 
   // Periodically refresh leaderboard from Firestore
   useEffect(() => {
@@ -2802,6 +2809,7 @@ export default function ArrakisGamePage() {
     [addNotification],
   )
 
+  if (!user) return <LoginForm />
   const handleEditTradeOffer = useCallback(
     (offerId: string, resource: keyof Resources, price: number) => {
       setGameState((prev) => {
