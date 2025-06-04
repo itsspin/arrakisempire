@@ -269,6 +269,26 @@ body {
   z-index: 10;
 }
 
+.seeker-launch-effect {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  font-size: calc(var(--cell-size) * 0.5);
+  animation: seeker-launch 1s forwards;
+  z-index: 20;
+}
+
+@keyframes seeker-launch {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.5);
+  }
+}
+
 @keyframes bounce {
   0%, 100% {
     transform: translateY(0);
