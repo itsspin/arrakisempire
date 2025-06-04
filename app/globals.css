@@ -280,6 +280,16 @@ body {
   }
 }
 
+@keyframes mythic-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px #ec4899);
+  }
+  50% {
+    filter: drop-shadow(0 0 15px #ec4899);
+  }
+}
+
 @keyframes sandworm-pulse {
   0%,
   100% {
@@ -342,6 +352,10 @@ body {
 .notification.legendary {
   background: linear-gradient(45deg, #f59e0b, #ef4444, #8b5cf6);
   animation: shimmer 2s infinite;
+}
+.notification.mythic {
+  background: linear-gradient(45deg, #ec4899, #8b5cf6, #f59e0b);
+  animation: mythic-glow 1.2s infinite;
 }
 
 .notification-area {
@@ -572,6 +586,10 @@ body {
 .rarity-legendary {
   border-color: #f59e0b;
   animation: shimmer 1.5s infinite;
+}
+.rarity-mythic {
+  border-color: #ec4899;
+  animation: mythic-glow 1.2s infinite;
 }
 
 .action-button {

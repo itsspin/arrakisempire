@@ -424,7 +424,7 @@ export default function ArrakisGamePage() {
   const addNotification = useCallback((message: string, type: GameState["notifications"][0]["type"] = "info") => {
     // Unchanged
     const now = Date.now()
-    if (type === "legendary" || type === "error" || type === "warning") {
+    if (type === "legendary" || type === "mythic" || type === "error" || type === "warning") {
       setGameState((prev) => ({
         ...prev,
         notifications: [...prev.notifications, { id: now.toString(), message, type }],
@@ -725,7 +725,16 @@ export default function ArrakisGamePage() {
             const emptySlotIndex = updatedInventory.findIndex((slot) => slot === null)
             if (emptySlotIndex !== -1) {
               updatedInventory[emptySlotIndex] = itemData
-              addNotification(`You found a ${itemData.icon} ${itemData.name}!`, "success")
+              const noticeType =
+                itemData.rarity === "mythic"
+                  ? "mythic"
+                  : itemData.rarity === "legendary"
+                  ? "legendary"
+                  : "success"
+              addNotification(
+                `You found a ${itemData.icon} ${itemData.name}!`,
+                noticeType as any
+              )
             } else {
               addNotification(`Inventory full! Could not pick up ${itemData.name}.`, "warning")
             }
