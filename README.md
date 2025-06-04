@@ -2,6 +2,8 @@
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
+
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://v0-arrakis-tycoon.vercel.app)
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://arrakis-spice-empire.vercel.app)
 [![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/TLm0pvg2OR0)
 
@@ -14,13 +16,27 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Your project is live at:
 
-**[https://arrakis-spice-empire.vercel.app](https://arrakis-spice-empire.vercel.app)**
+
+**[https://v0-arrakis-tycoon.vercel.app](https://v0-arrakis-tycoon.vercel.app)**
+
+
+
 
 ## Play the Game
 
 Experience Arrakis Spice Empire in your browser:
 
-**[https://arrakis-spice-empire.vercel.app](https://arrakis-spice-empire.vercel.app)**
+
+**[https://v0-arrakis-tycoon.vercel.app](https://v0-arrakis-tycoon.vercel.app)**
+
+## Game Features
+
+- Build up your spice empire with structures and lucrative investments.
+- Conquer and control territories across the desert world map.
+- Face enemies and unique bosses in turn-based combat.
+- Level up your character and prestige for permanent bonuses.
+- Trade and chat with other players in the multiplayer hub.
+- Track your progress on the global leaderboard.
 
 ## Build your app
 
@@ -38,6 +54,10 @@ Recent additions to **Arrakis Spice Empire** include:
 - Expanded prestige system with XP bonuses.
 - Multiplayer hub featuring world chat, trading, and a territory chart.
 - Improved leaderboard tracking player ranks and power.
+- Empire builder expanded with new ventures and the option to buy random territory.
+- Houses claim surrounding sectors when enemies are defeated.
+- Ability to sell unused gear for Solari.
+- Enlarged map view for easier territory control on mobile and desktop.
 
 - Empire builder expanded with new ventures and a button to buy random territory.
 =======
