@@ -27,6 +27,7 @@ import { AbilitySelectionModal } from "@/components/modals/ability-selection-mod
 import { TradePanel } from "@/components/trade-panel"
 import { TradingModal } from "@/components/modals/trading-modal"
 import { UpdatesTab } from "@/components/updates-tab"
+import { BountyBoard } from "@/components/bounty-board"
 import { Slider } from "@/components/ui/slider"
 import { PauseModal } from "@/components/modals/pause-modal"
 import { SandwormWarning } from "@/components/sandworm-warning"
@@ -198,6 +199,7 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     energyProductionRate: CONFIG.ENERGY_REGEN_RATE,
     created: Date.now(),
     lastActive: Date.now(),
+    bounty: 0,
     investments: JSON.parse(JSON.stringify(empireInitialVentures)), // Deep copy to ensure unique instance per player
     spicePerClick: 1,
     spiceClickUpgradeCost: 50,
@@ -242,6 +244,7 @@ const createInitialAIPlayer = (
     name: name,
     house: house,
     color: color,
+    bounty: 0,
     position: getRandomMapCoords(), // Give AI a random starting position
     basePosition: initialPlayerPart.position, // Same as initial for now
     // AIs have their own resources
@@ -325,6 +328,8 @@ const initialGameState: GameState = {
   isPaused: false,
   sandwormAttackTime: null,
   lastSeekerLaunchTime: 0,
+  bounties: {},
+  trackingTargetId: null,
 }
 
 const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
@@ -557,6 +562,8 @@ export default function ArrakisGamePage() {
             activeAbility: savedState.player.activeAbility || null,
             isDefending: savedState.player.isDefending || false,
             abilityCooldowns: savedState.abilityCooldowns || {},
+            bounties: savedState.bounties || {},
+            trackingTargetId: savedState.trackingTargetId || null,
             quests: savedState.quests || generateInitialQuests(),
             completedQuests: savedState.completedQuests || [],
             lastAIProcessingTime: Date.now(), // Initialize processing times
@@ -581,6 +588,8 @@ export default function ArrakisGamePage() {
             completedQuests: [],
             lastAIProcessingTime: Date.now(),
             lastWorldEventProcessingTime: Date.now(),
+            bounties: {},
+            trackingTargetId: null,
           }
 
           // Give initial territories to AIs on new game
@@ -723,6 +732,8 @@ export default function ArrakisGamePage() {
         enemies: { ...mapState.enemies },
         territories: { ...mapState.territories },
       } // Be careful with deep copies if needed
+      const newBounties = { ...currentFullGameState.bounties }
+      let trackingTargetId = currentFullGameState.trackingTargetId || null
       const updatedInventory = [...currentFullGameState.inventory] // Use inventory from the ref
       const now = Date.now()
 
@@ -896,6 +907,13 @@ export default function ArrakisGamePage() {
               `${defeatedPlayer.name} lost ${territoriesToLose} territories!`,
               "info",
             )
+            const bounty = newBounties[enemyId] || 0
+            if (bounty > 0) {
+              newResources.solari += bounty
+              addNotification(`Bounty collected: ${bounty} Solari!`, "success")
+              delete newBounties[enemyId]
+              if (trackingTargetId === enemyId) trackingTargetId = null
+            }
           }
         }
       } else if (result === "lose") {
@@ -973,6 +991,8 @@ export default function ArrakisGamePage() {
         isCombatModalOpen: false,
         inventory: updatedInventory,
         capturingTerritoryId: null,
+        bounties: newBounties,
+        trackingTargetId,
         // If ability modal should open, set flag here:
         isAbilitySelectionModalOpen:
           result === "win" &&
@@ -2459,6 +2479,42 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  const handleTrackPlayer = useCallback(
+    (targetId: string) => {
+      setGameState((prev) => {
+        const newResources = { ...prev.resources }
+        if (newResources.plasteel < CONFIG.TRACK_COST_PLASTEEL) {
+          addNotification(
+            `Need ${CONFIG.TRACK_COST_PLASTEEL} Plasteel to track a target!`,
+            "warning",
+          )
+          return prev
+        }
+        newResources.plasteel -= CONFIG.TRACK_COST_PLASTEEL
+        return { ...prev, resources: newResources, trackingTargetId: targetId }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleAddBounty = useCallback(
+    (targetId: string) => {
+      setGameState((prev) => {
+        const amount = CONFIG.BOUNTY_INCREMENT
+        const newResources = { ...prev.resources }
+        const newBounties = { ...prev.bounties }
+        if (newResources.solari < amount) {
+          addNotification(`Need ${amount} Solari to add a bounty!`, "warning")
+          return prev
+        }
+        newResources.solari -= amount
+        newBounties[targetId] = (newBounties[targetId] || 0) + amount
+        return { ...prev, resources: newResources, bounties: newBounties }
+      })
+    },
+    [addNotification],
+  )
+
   const handleEquipItem = useCallback(
     (item: Item, inventoryIndex: number) => {
       setGameState((prev) => {
@@ -2790,6 +2846,12 @@ export default function ArrakisGamePage() {
                   onCellClick={handleMapCellClick}
                   zoom={zoom}
                   onZoomChange={setZoom}
+                  trackingTarget={
+                    gameState.trackingTargetId &&
+                    gameState.onlinePlayers[gameState.trackingTargetId]
+                      ? gameState.onlinePlayers[gameState.trackingTargetId].position
+                      : null
+                  }
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
@@ -2886,6 +2948,14 @@ export default function ArrakisGamePage() {
                 />
                 {/* WorldEventsPanel should show dynamic events */}
                 <WorldEventsPanel worldEvents={gameState.worldEvents} />
+                <BountyBoard
+                  onlinePlayers={gameState.onlinePlayers}
+                  bounties={gameState.bounties}
+                  resources={gameState.resources}
+                  onAddBounty={handleAddBounty}
+                  onTrack={handleTrackPlayer}
+                  trackingTargetId={gameState.trackingTargetId}
+                />
                 <TradePanel
                   player={gameState.player}
                   resources={gameState.resources}
