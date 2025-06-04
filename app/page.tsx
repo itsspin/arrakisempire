@@ -2646,6 +2646,7 @@ export default function ArrakisGamePage() {
                   worldEvents={gameState.worldEvents} // Pass dynamic world events
                   onCellClick={handleMapCellClick}
                   zoom={zoom}
+                  onZoomChange={setZoom}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
