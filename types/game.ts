@@ -16,6 +16,7 @@ export interface Player {
   dodgeChance: number
   position: { x: number; y: number }
   basePosition: { x: number; y: number }
+  baseBuilt: boolean
   house: string | null
   rank: number
   rankName?: string

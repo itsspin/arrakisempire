@@ -212,6 +212,12 @@ body {
   color: white !important;
 }
 
+.map-cell-base {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: white !important;
+  border: 2px solid #93c5fd !important;
+}
+
 .map-cell-territory {
   border: 3px solid currentColor !important;
 }

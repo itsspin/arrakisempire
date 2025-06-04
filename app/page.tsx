@@ -22,6 +22,7 @@ import { HousesPanel } from "@/components/houses-panel"
 import { WorldEventsPanel } from "@/components/world-events-panel"
 import { PrestigeModal } from "@/components/modals/prestige-modal"
 import { WorldChat } from "@/components/world-chat"
+import { isInBaseArea } from "@/lib/utils"
 import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
@@ -186,6 +187,7 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     dodgeChance: 15,
     position: initialPosition,
     basePosition: initialPosition,
+    baseBuilt: false,
     house: null,
     rank: 100,
     rankName: "Sand Nomad",
@@ -244,6 +246,7 @@ const createInitialAIPlayer = (
     color: color,
     position: getRandomMapCoords(), // Give AI a random starting position
     basePosition: initialPlayerPart.position, // Same as initial for now
+    baseBuilt: false,
     // AIs have their own resources
     resources: {
       spice: getRandomInt(1000, 3000),
@@ -1448,7 +1451,8 @@ export default function ArrakisGamePage() {
               !newMap.enemies[spawnKey] &&
               !newMap.resources[spawnKey] &&
               !newMap.items[spawnKey] &&
-              !newMap.territories[spawnKey].isDestroyed
+              !newMap.territories[spawnKey].isDestroyed &&
+              !isInBaseArea(newPlayer, x, y)
             ) {
               const typeKey = enemyKeys[getRandomInt(0, enemyKeys.length - 1)]
               const data = STATIC_DATA.ENEMIES[typeKey]
@@ -1504,10 +1508,15 @@ export default function ArrakisGamePage() {
                       const targetKey = targetTerr.position
                         ? `${targetTerr.position.x},${targetTerr.position.y}`
                         : `${targetTerr.x},${targetTerr.y}`
-                      newMap.territories[targetKey].isDestroyed = true
-                      newMap.territories[targetKey].destroyedUntil = now + 180000 // Destroyed for 3 mins
-                      newChainedEvent.description = `${newChainedEvent.name} targets Sector ${targetTerr.name || targetKey}! Buildings and units are lost!`
-                      addNotification(`SHAI-HULUD ATTACKS ${targetTerr.name || targetKey}!`, "legendary")
+                      const owner =
+                        targetTerr.ownerId === newPlayer.id
+                          ? newPlayer
+                          : newOnlinePlayers[targetTerr.ownerId!]
+                      if (!isInBaseArea(owner, targetTerr.position.x, targetTerr.position.y)) {
+                        newMap.territories[targetKey].isDestroyed = true
+                        newMap.territories[targetKey].destroyedUntil = now + 180000 // Destroyed for 3 mins
+                        newChainedEvent.description = `${newChainedEvent.name} targets Sector ${targetTerr.name || targetKey}! Buildings and units are lost!`
+                        addNotification(`SHAI-HULUD ATTACKS ${targetTerr.name || targetKey}!`, "legendary")
 
                       // Remove units/enemies from this territory (simplified)
                       Object.keys(newMap.enemies).forEach((ekey) => {
@@ -1519,6 +1528,7 @@ export default function ArrakisGamePage() {
                         }
                       })
                     }
+                  }
                   }
                   newWorldEvents.push(newChainedEvent)
                   addNotification(`New Event: ${newChainedEvent.name}! - ${newChainedEvent.description}`, "warning")
@@ -1565,6 +1575,9 @@ export default function ArrakisGamePage() {
                   const terr = newMap.territories[terrKey]
                   const ownerId = terr.ownerId
                   if (ownerId) {
+                    if (isInBaseArea(ownerId === newPlayer.id ? newPlayer : newOnlinePlayers[ownerId], terr.position.x, terr.position.y)) {
+                      continue
+                    }
                     if (ownerId === newPlayer.id) {
                       newPlayer.territories = newPlayer.territories.filter(
                         (t) => t.id !== terr.id,
@@ -1770,7 +1783,8 @@ export default function ArrakisGamePage() {
                       !Object.values(newOnlinePlayers).some(
                         (p) => p.position?.x === nextX && p.position?.y === nextY,
                       ) &&
-                      !newMap.territories[targetCellKey].isDestroyed
+                      !newMap.territories[targetCellKey].isDestroyed &&
+                      !isInBaseArea(newPlayer, nextX, nextY)
                     ) {
                       possibleMoves.push({ x: nextX, y: nextY })
                     }
@@ -1785,7 +1799,7 @@ export default function ArrakisGamePage() {
                   delete newMap.enemies[key] // Remove from old position
 
                   const terr = newMap.territories[newKey]
-                  if (terr && terr.ownerId) {
+                  if (terr && terr.ownerId && !isInBaseArea(newPlayer, newPos.x, newPos.y)) {
                     const ownerId = terr.ownerId
                     if (ownerId === newPlayer.id) {
                       newPlayer.territories = newPlayer.territories.filter(
@@ -1818,7 +1832,7 @@ export default function ArrakisGamePage() {
 
         // Idle sandworm warning and attack
         const idleTime = now - newPlayer.lastActive
-        if (!sandwormAttackTime && idleTime >= CONFIG.IDLE_TIME_BEFORE_WORM) {
+        if (!sandwormAttackTime && idleTime >= CONFIG.IDLE_TIME_BEFORE_WORM && !isInBaseArea(newPlayer, newPlayer.position.x, newPlayer.position.y)) {
           sandwormAttackTime = now + CONFIG.SANDWORM_COUNTDOWN
           newNotifications.push({
             id: now.toString(),
@@ -1829,7 +1843,7 @@ export default function ArrakisGamePage() {
         if (sandwormAttackTime && idleTime < CONFIG.IDLE_TIME_BEFORE_WORM) {
           sandwormAttackTime = null
         }
-        if (sandwormAttackTime && now >= sandwormAttackTime) {
+        if (sandwormAttackTime && now >= sandwormAttackTime && !isInBaseArea(newPlayer, newPlayer.position.x, newPlayer.position.y)) {
           const ownedKeys = [
             ...newPlayer.territories
               .filter((t) => t.position)
@@ -1840,7 +1854,7 @@ export default function ArrakisGamePage() {
             const idx = getRandomInt(0, ownedKeys.length - 1)
             const terrKey = ownedKeys.splice(idx, 1)[0]
             const terr = newMap.territories[terrKey]
-            if (terr) {
+            if (terr && !isInBaseArea(newPlayer, terr.position.x, terr.position.y)) {
               newMap.territories[terrKey] = { ...terr, ownerId: null, ownerName: undefined, ownerColor: undefined }
               newPlayer.territories = newPlayer.territories.filter((t) => t.id !== terr.id)
             }
@@ -2590,6 +2604,18 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  const handleBuildBase = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.player.baseBuilt) {
+        addNotification("Base already built!", "warning")
+        return prev
+      }
+      const newPlayer = { ...prev.player, basePosition: { ...prev.player.position }, baseBuilt: true }
+      addNotification("Base constructed!", "success")
+      return { ...prev, player: newPlayer }
+    })
+  }, [addNotification])
+
   const handleCraftItem = useCallback(
     (recipeId: keyof typeof CRAFTING_RECIPES) => {
       setGameState((prev) => {
@@ -2738,6 +2764,7 @@ export default function ArrakisGamePage() {
             onSellSpice={handleSellSpice}
             onMinePlasteel={handleMinePlasteel}
             onCollectWater={handleCollectWater}
+            onBuildBase={handleBuildBase}
           />
         </aside>
 
