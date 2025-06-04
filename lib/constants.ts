@@ -86,3 +86,8 @@ export const RARITY_SCORES = {
   epic: 4,
   legendary: 5,
 }
+
+export const CRAFTING_RECIPES = {
+  healingStim: { plasteel: 10, rareMaterials: 2, melange: 1 },
+  battleStim: { plasteel: 15, rareMaterials: 3, melange: 2 },
+}

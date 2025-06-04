@@ -335,6 +335,26 @@ export const STATIC_DATA = {
       description: "Ancient artifact of immense power.",
       dropChance: 0.005,
     },
+    healingStim: {
+      name: "Healing Stim",
+      icon: "💊",
+      type: "consumable",
+      rarity: "common",
+      description: "Restores 50 health when used.",
+      effectType: "heal",
+      effectValue: 50,
+      dropChance: 0,
+    },
+    battleStim: {
+      name: "Battle Stim",
+      icon: "⚔️",
+      type: "consumable",
+      rarity: "uncommon",
+      description: "Boosts attack by 10 for one combat.",
+      effectType: "attack_boost",
+      effectValue: 10,
+      dropChance: 0,
+    },
   },
   WORLD_EVENTS: [
     {
