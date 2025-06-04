@@ -2,7 +2,7 @@ import type { PlayerColor } from "@/types/game"
 
 export const CONFIG = {
   MAP_SIZE: 200,
-  VIEW_RADIUS: 7,
+  VIEW_RADIUS: 9,
   MAX_INVENTORY: 40,
   ENERGY_REGEN_RATE: 3,
   ENERGY_REGEN_INTERVAL: 2000,

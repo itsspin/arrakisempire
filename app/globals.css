@@ -64,7 +64,7 @@ body {
 
 .map-grid {
   --map-columns: 15;
-  --cell-size: 32px;
+  --cell-size: 36px;
   display: grid;
   grid-template-columns: repeat(var(--map-columns), var(--cell-size));
   gap: 1px;
