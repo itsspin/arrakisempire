@@ -398,6 +398,19 @@ const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
   })
 }
 
+const applyXpGain = (player: Player, base: number) => {
+  let xp = base
+  const now = Date.now()
+  xp = Math.floor(xp * player.globalGainMultiplier)
+  if (player.xpBuffExpires && player.xpBuffExpires > now) {
+    xp = Math.floor(xp * (player.xpBuffMultiplier || 1))
+  }
+  if (player.house === "atreides") {
+    xp = Math.floor(xp * 1.25)
+  }
+  player.experience += xp
+}
+
 // --- CONFIGURATION FOR NEW SYSTEMS ---
 const AI_CONFIG = {
   PROCESSING_INTERVAL: 10000, // AI acts every 10 seconds
@@ -488,10 +501,14 @@ export default function ArrakisGamePage() {
       ]
       quests = quests.filter((q) => !q.completed)
       const newQuests = quests.slice()
+      let xpTotal = 0
       newlyCompleted.forEach(() => {
         newQuests.push(createRandomQuest())
+        xpTotal += CONFIG.XP_GAIN_QUEST_COMPLETE
       })
-      return { ...prev, quests: newQuests, completedQuests }
+      const newPlayer = { ...prev.player }
+      if (xpTotal > 0) applyXpGain(newPlayer, xpTotal)
+      return { ...prev, quests: newQuests, completedQuests, player: newPlayer }
     })
   }, [addNotification])
 
@@ -2394,6 +2411,7 @@ export default function ArrakisGamePage() {
         newPlayer.territories = [...newPlayer.territories, updatedTerritory] // Add to player's owned territories
 
         updateQuestProgress("territory")
+        applyXpGain(newPlayer, CONFIG.XP_GAIN_TERRITORY_PURCHASE)
 
         addNotification(`Territory ${territory.name || territoryId} purchased!`, "success")
 
@@ -2455,6 +2473,7 @@ export default function ArrakisGamePage() {
       }
 
       updateQuestProgress("territory")
+      applyXpGain(newPlayer, CONFIG.XP_GAIN_TERRITORY_PURCHASE)
 
       addNotification(`Purchased ${territory.name || randomKey} for ${finalCost.toLocaleString()} Solari!`, "success")
 
@@ -2603,6 +2622,7 @@ export default function ArrakisGamePage() {
 
       newResources.spice += spiceAmount
       newPlayer.lifetimeSpice += spiceAmount
+      applyXpGain(newPlayer, CONFIG.XP_GAIN_GATHER)
       addNotification(`Gathered ${spiceAmount} Spice!`, "success")
       return { ...prev, resources: newResources, player: newPlayer }
     })
@@ -2649,6 +2669,7 @@ export default function ArrakisGamePage() {
       if (newPlayer.energy >= CONFIG.MINE_PLASTEEL_ENERGY_COST) {
         newPlayer.energy -= CONFIG.MINE_PLASTEEL_ENERGY_COST
         newResources.plasteel += CONFIG.MINE_PLASTEEL_YIELD
+        applyXpGain(newPlayer, CONFIG.XP_GAIN_GATHER)
         addNotification(`Mined ${CONFIG.MINE_PLASTEEL_YIELD} Plasteel!`, "success")
       } else {
         addNotification(
@@ -2667,6 +2688,7 @@ export default function ArrakisGamePage() {
       if (newPlayer.energy >= CONFIG.COLLECT_WATER_ENERGY_COST) {
         newPlayer.energy -= CONFIG.COLLECT_WATER_ENERGY_COST
         newResources.water += CONFIG.COLLECT_WATER_YIELD
+        applyXpGain(newPlayer, CONFIG.XP_GAIN_GATHER)
         addNotification(`Collected ${CONFIG.COLLECT_WATER_YIELD} Water!`, "success")
       } else {
         addNotification(
@@ -2685,6 +2707,7 @@ export default function ArrakisGamePage() {
         return prev
       }
       const newPlayer = { ...prev.player, basePosition: { ...prev.player.position }, baseBuilt: true }
+      applyXpGain(newPlayer, CONFIG.XP_GAIN_BUILD_BASE)
       addNotification("Base constructed!", "success")
       return { ...prev, player: newPlayer }
     })
@@ -2696,6 +2719,7 @@ export default function ArrakisGamePage() {
         const recipe = CRAFTING_RECIPES[recipeId]
         if (!recipe) return prev
         const newResources = { ...prev.resources }
+        const newPlayer = { ...prev.player }
         if (
           newResources.plasteel < recipe.plasteel ||
           newResources.rareMaterials < recipe.rareMaterials ||
@@ -2712,11 +2736,12 @@ export default function ArrakisGamePage() {
         }
         newResources.plasteel -= recipe.plasteel
         newResources.rareMaterials -= recipe.rareMaterials
-        newResources.melange -= recipe.melange
-        const itemData = STATIC_DATA.ITEMS[recipeId as keyof typeof STATIC_DATA.ITEMS]
-        newInventory[emptyIndex] = { ...itemData }
+       newResources.melange -= recipe.melange
+       const itemData = STATIC_DATA.ITEMS[recipeId as keyof typeof STATIC_DATA.ITEMS]
+       newInventory[emptyIndex] = { ...itemData }
+        applyXpGain(newPlayer, CONFIG.XP_GAIN_CRAFT)
         addNotification(`Crafted ${itemData.name}!`, "success")
-        return { ...prev, resources: newResources, inventory: newInventory }
+        return { ...prev, resources: newResources, inventory: newInventory, player: newPlayer }
       })
     },
     [addNotification],
