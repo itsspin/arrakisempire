@@ -148,10 +148,23 @@ body {
   pointer-events: none;
 }
 
+.seeker-countdown {
+  position: absolute;
+  top: -0.8em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--cell-size) * 0.25);
+  line-height: 1;
+  white-space: nowrap;
+  color: #f87171;
+  text-shadow: 0 0 2px #000;
+  pointer-events: none;
+}
+
 .map-cell-enemy {
   background: linear-gradient(135deg, #ef4444, #dc2626) !important;
   color: white !important;
-  box-shadow: 0 0 8px #ef4444; /* Added distinct shadow */
+  /* Removed glow for regular enemies */
 }
 
 .map-cell-boss {
@@ -206,6 +219,11 @@ body {
   color: white !important;
   animation: world-event-pulse 2s infinite;
   filter: brightness(1.1); /* Enhanced brightness */
+}
+
+.map-cell-seeker {
+  background: linear-gradient(135deg, #b91c1c, #991b1b) !important;
+  color: white !important;
 }
 
 .map-cell-desert {

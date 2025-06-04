@@ -10,6 +10,7 @@ interface EmpireTabProps {
   onManualGather: (ventureId: string) => void // New: Function for manual gathering
   onHireManager: (ventureId: string) => void // New: Function to hire manager
   onPurchaseRandomTerritory: () => void // Buy a random territory
+  onLaunchSeeker: () => void
 }
 
 // Export initialVentures so it can be used in app/page.tsx for consistent state initialization
@@ -142,6 +143,7 @@ export function EmpireTab({
   onManualGather,
   onHireManager,
   onPurchaseRandomTerritory,
+  onLaunchSeeker,
 }: EmpireTabProps) {
   // Use player.investments directly, as it's managed by the parent (app/page.tsx)
   const ventures = player.investments || initialVentures
@@ -240,17 +242,33 @@ export function EmpireTab({
         <h4 className="text-lg font-semibold text-amber-300 mb-2">Territory Perks</h4>
         {player.territories.length > 0 ? (
           <ul className="list-disc list-inside text-sm text-stone-300 space-y-1">
-            {player.territories
-              .flatMap((t) => t.perks)
-              .map((perk, i) => (
-                <li key={i}>{perk}</li>
-              ))}
+            {Object.entries(
+              player.territories
+                .flatMap((t) => t.perks)
+                .reduce((acc: Record<string, number>, perk) => {
+                  acc[perk] = (acc[perk] || 0) + 1
+                  return acc
+                }, {}),
+            ).map(([perk, count]) => (
+              <li key={perk}>
+                {perk}
+                {count > 1 ? ` (x${count})` : ""}
+              </li>
+            ))}
           </ul>
         ) : (
           <p className="text-sm text-stone-400">Acquire territories to gain passive bonuses to your empire.</p>
         )}
       </div>
       <div className="mt-6">
+        <button
+          onClick={onLaunchSeeker}
+          disabled={resources.solari < CONFIG.SEEKER_COST}
+          className="w-full py-3 bg-red-600 hover:bg-red-700 rounded font-bold mb-3 disabled:bg-stone-600"
+          title={`Costs ${CONFIG.SEEKER_COST.toLocaleString()} Solari`}
+        >
+          Launch Seeker Drone
+        </button>
         <button
           onClick={onPurchaseRandomTerritory}
           disabled={resources.solari < CONFIG.RANDOM_TERRITORY_PURCHASE_COST}
