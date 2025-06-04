@@ -34,6 +34,8 @@ export interface Player {
   unlockedAbilities: Ability[]
   activeAbility: Ability | null
   isDefending: boolean
+  xpBuffMultiplier?: number
+  xpBuffExpires?: number | null
   // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
   // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
   equipment?: Equipment // Added for AI ranking
