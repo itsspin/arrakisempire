@@ -1349,26 +1349,6 @@ export default function ArrakisGamePage() {
             }
           }
         }
-        // (Resource and Item respawn logic - assuming it's largely correct from before)
-        // Item Respawn Logic (from original code)
-        const newRespawnQueue = { ...itemRespawnQueue }
-        Object.entries(newRespawnQueue).forEach(([itemId, { item, respawnTime }]) => {
-          if (now >= respawnTime) {
-            const { x, y } = getRandomMapCoords()
-            const newKey = `${x},${y}`
-            if (!newMap.items[newKey] && !newMap.enemies[newKey] && !newMap.resources[newKey]) {
-              // Check if cell is empty
-              newMap.items[newKey] = { ...item, id: `item_${newKey}`, position: { x, y } }
-              addNotification(`An item (${item.name}) has respawned at (${x},${y}).`, "info")
-              delete newRespawnQueue[itemId]
-            } else {
-              // Reschedule if cell is occupied
-              newRespawnQueue[itemId].respawnTime = now + 10000 // Try again in 10s
-            }
-          }
-        })
-        // No direct setItemRespawnQueue here, it's managed outside setGameState usually or returned.
-        // For simplicity, assume itemRespawnQueue is updated correctly if needed.
 
         // --- 3. NEW: Dynamic World Event Management ---
         if (now - (prev.lastWorldEventProcessingTime || 0) >= 5000) {
