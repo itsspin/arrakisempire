@@ -43,6 +43,7 @@ Recent additions to **Arrakis Spice Empire** include:
 =======
 - Defeating an enemy now grants your house control of the surrounding sectors.
 - Ability to sell unused gear for Solari.
+- Enlarged map view for easier risk-style territory control on both desktop and mobile.
 
 
 ## How It Works

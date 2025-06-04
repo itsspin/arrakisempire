@@ -405,7 +405,7 @@ export default function ArrakisGamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [itemRespawnQueue, setItemRespawnQueue] = useState<Record<string, { item: Item; respawnTime: number }>>({})
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(1.2)
 
   const lastGeneralNotificationTime = useRef(0)
   const GENERAL_NOTIFICATION_COOLDOWN = 1000
