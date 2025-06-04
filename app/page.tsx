@@ -229,6 +229,7 @@ const initialMapData = {
   resources: generateMockResources(),
   territories: generateMockTerritories(),
   items: generateMockItems(),
+  seekers: {},
 }
 
 // Function to create an AI player with initial state
@@ -323,6 +324,7 @@ const initialGameState: GameState = {
   lastAIProcessingTime: 0, // NEW
   lastWorldEventProcessingTime: 0, // NEW
   capturingTerritoryId: null,
+  lastSeekerLaunchTime: 0,
 }
 
 const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
@@ -506,6 +508,7 @@ export default function ArrakisGamePage() {
             map: {
               ...initialMapData,
               territories: newMapTerritories,
+              seekers: savedState.map?.seekers || {},
             },
             onlinePlayers: updatedOnlinePlayers, // Use updated AIs
             unlockedAbilities: savedState.player.unlockedAbilities || [],
@@ -1079,6 +1082,7 @@ export default function ArrakisGamePage() {
         map: {
           ...initialMapData,
           territories: newMapTerritories, // Use the new map with reset/reassigned territories
+          seekers: {},
         },
         onlinePlayers: newOnlinePlayers, // Update online players with new territories
         isPrestigeModalOpen: false,
@@ -1527,6 +1531,36 @@ export default function ArrakisGamePage() {
           })
           prev.lastAIProcessingTime = now // Update time
         }
+
+        // --- 5. Seeker Claim Processing ---
+        Object.entries(newMap.seekers).forEach(([sKey, seeker]) => {
+          if (now >= seeker.claimTime) {
+            const terr = newMap.territories[sKey]
+            if (terr) {
+              const updatedTerr = {
+                ...terr,
+                ownerId: seeker.ownerId,
+                ownerName: seeker.ownerName,
+                ownerColor: seeker.ownerColor,
+                captureLevel: 0,
+              }
+              newMap.territories[sKey] = updatedTerr
+              if (seeker.ownerId === newPlayer.id) {
+                const alreadyOwned = newPlayer.territories.find(
+                  (t) => t.position.x === updatedTerr.position.x && t.position.y === updatedTerr.position.y,
+                )
+                if (!alreadyOwned) newPlayer.territories.push(updatedTerr)
+                addNotification(`Your Seeker claimed ${terr.name || sKey}!`, "success")
+              } else if (newOnlinePlayers[seeker.ownerId]) {
+                const ai = newOnlinePlayers[seeker.ownerId]
+                if (!ai.territories.find((t) => t.id === updatedTerr.id)) {
+                  ai.territories.push(updatedTerr)
+                }
+              }
+            }
+            delete newMap.seekers[sKey]
+          }
+        })
 
         // --- 5. NEW: Enemy Movement ---
         if (now - (prev.player.lastActive || 0) > ENEMY_MOVEMENT_CONFIG.PROCESSING_INTERVAL) {
@@ -2133,6 +2167,44 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  const handleLaunchSeeker = useCallback(() => {
+    setGameState((prev) => {
+      const now = Date.now()
+      if (now - (prev.lastSeekerLaunchTime || 0) < CONFIG.SEEKER_COOLDOWN) {
+        addNotification("Seeker launch cooling down!", "warning")
+        return prev
+      }
+
+      const newResources = { ...prev.resources }
+      const newPlayer = { ...prev.player }
+      if (newResources.solari < CONFIG.SEEKER_COST) {
+        addNotification(`Need ${CONFIG.SEEKER_COST.toLocaleString()} Solari to launch a Seeker!`, "warning")
+        return prev
+      }
+
+      const newMap = { ...prev.map, seekers: { ...prev.map.seekers } }
+      newResources.solari -= CONFIG.SEEKER_COST
+      const { x, y } = getRandomMapCoords()
+      const key = `${x},${y}`
+      newMap.seekers[key] = {
+        id: `seeker_${now}`,
+        position: { x, y },
+        ownerId: newPlayer.id!,
+        ownerName: newPlayer.name,
+        ownerColor: newPlayer.color,
+        claimTime: now + CONFIG.SEEKER_COOLDOWN,
+      }
+
+      addNotification(`Seeker launched to ${key}!`, "success")
+      return {
+        ...prev,
+        resources: newResources,
+        map: newMap,
+        lastSeekerLaunchTime: now,
+      }
+    })
+  }, [addNotification])
+
   const handleEquipItem = useCallback(
     (item: Item, inventoryIndex: number) => {
       setGameState((prev) => {
@@ -2438,14 +2510,15 @@ export default function ArrakisGamePage() {
             />
           )}
           {gameState.currentTab === "empire" && (
-            <EmpireTab
-              player={gameState.player}
-              resources={gameState.resources}
-              onInvest={handleInvestInVenture}
-              onManualGather={handleManualGather}
-              onHireManager={handleHireManager}
-              onPurchaseRandomTerritory={handlePurchaseRandomTerritory}
-            />
+          <EmpireTab
+            player={gameState.player}
+            resources={gameState.resources}
+            onInvest={handleInvestInVenture}
+            onManualGather={handleManualGather}
+            onHireManager={handleHireManager}
+            onPurchaseRandomTerritory={handlePurchaseRandomTerritory}
+            onLaunchSeeker={handleLaunchSeeker}
+          />
           )}
           {gameState.currentTab === "multiplayer" && (
             <div className="flex-1 p-6 overflow-y-auto">
