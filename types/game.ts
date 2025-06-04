@@ -67,6 +67,8 @@ export interface Item {
   description: string
   dropChance?: number
   special?: string | null
+  effectType?: "heal" | "attack_boost"
+  effectValue?: number
 }
 
 export interface MapElement {

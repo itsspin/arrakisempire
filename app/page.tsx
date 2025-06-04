@@ -48,7 +48,7 @@ import type {
   Quest,
   TradeOffer,
 } from "@/types/game"
-import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS } from "@/lib/constants"
+import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS, CRAFTING_RECIPES } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
@@ -2590,6 +2590,38 @@ export default function ArrakisGamePage() {
     })
   }, [addNotification])
 
+  const handleCraftItem = useCallback(
+    (recipeId: keyof typeof CRAFTING_RECIPES) => {
+      setGameState((prev) => {
+        const recipe = CRAFTING_RECIPES[recipeId]
+        if (!recipe) return prev
+        const newResources = { ...prev.resources }
+        if (
+          newResources.plasteel < recipe.plasteel ||
+          newResources.rareMaterials < recipe.rareMaterials ||
+          newResources.melange < recipe.melange
+        ) {
+          addNotification("Not enough resources to craft!", "warning")
+          return prev
+        }
+        const newInventory = [...prev.inventory]
+        const emptyIndex = newInventory.findIndex((slot) => slot === null)
+        if (emptyIndex === -1) {
+          addNotification("Inventory full!", "warning")
+          return prev
+        }
+        newResources.plasteel -= recipe.plasteel
+        newResources.rareMaterials -= recipe.rareMaterials
+        newResources.melange -= recipe.melange
+        const itemData = STATIC_DATA.ITEMS[recipeId as keyof typeof STATIC_DATA.ITEMS]
+        newInventory[emptyIndex] = { ...itemData }
+        addNotification(`Crafted ${itemData.name}!`, "success")
+        return { ...prev, resources: newResources, inventory: newInventory }
+      })
+    },
+    [addNotification],
+  )
+
   const handleOpenPrestigeModal = useCallback(() => {
     setGameState((prev) => {
       if (prev.player.level < 20) {
@@ -2799,11 +2831,13 @@ export default function ArrakisGamePage() {
               player={gameState.player}
               equipment={gameState.equipment}
               inventory={gameState.inventory}
+              resources={gameState.resources}
               onEquipItem={handleEquipItem}
               onSellItem={handleSellItem}
               onOpenPrestigeModal={handleOpenPrestigeModal}
               onActivateAbility={handleActivateAbility}
               abilityCooldowns={gameState.abilityCooldowns}
+              onCraftItem={handleCraftItem}
             />
           )}
           {gameState.currentTab === "empire" && (

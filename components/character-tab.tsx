@@ -1,28 +1,32 @@
 "use client"
 
-import type { Player, Equipment, Item, Ability } from "@/types/game"
-import { CONFIG } from "@/lib/constants" // For MAX_INVENTORY
+import type { Player, Equipment, Item, Ability, Resources } from "@/types/game"
+import { CONFIG, CRAFTING_RECIPES } from "@/lib/constants" // For MAX_INVENTORY and crafting costs
 
 interface CharacterTabProps {
   player: Player
   equipment: Equipment
   inventory: (Item | null)[]
+  resources: Resources
   onEquipItem: (item: Item, inventoryIndex: number) => void
   onSellItem: (item: Item, inventoryIndex: number) => void
   onOpenPrestigeModal: () => void // New prop
   onActivateAbility: (ability: Ability) => void // New prop
   abilityCooldowns: Record<string, number> // New prop
+  onCraftItem: (recipeId: "healingStim" | "battleStim") => void
 }
 
 export function CharacterTab({
   player,
   equipment,
   inventory,
+  resources,
   onEquipItem,
   onSellItem,
   onOpenPrestigeModal,
   onActivateAbility,
   abilityCooldowns,
+  onCraftItem,
 }: CharacterTabProps) {
   const xpBuff = player.xpBuffExpires && player.xpBuffExpires > Date.now() ? player.xpBuffMultiplier || 1 : 1
   const totalXPGainBonus =
@@ -149,6 +153,30 @@ export function CharacterTab({
                 })}
               </div>
             )}
+          </div>
+
+          <div className="mt-6">
+            <h3 className="text-xl font-semibold mb-4 text-amber-300">Crafting</h3>
+            <div className="space-y-2 text-sm">
+              {(["healingStim", "battleStim"] as const).map((id) => {
+                const recipe = CRAFTING_RECIPES[id]
+                const canCraft =
+                  resources.plasteel >= recipe.plasteel &&
+                  resources.rareMaterials >= recipe.rareMaterials &&
+                  resources.melange >= recipe.melange
+                return (
+                  <button
+                    key={id}
+                    onClick={() => onCraftItem(id)}
+                    disabled={!canCraft}
+                    className="w-full py-2 px-3 rounded-md font-semibold bg-green-700 hover:bg-green-800 text-white disabled:bg-stone-500 disabled:cursor-not-allowed"
+                    title={`Cost: ${recipe.plasteel} 🔧 ${recipe.rareMaterials} 💎 ${recipe.melange} 🔥`}
+                  >
+                    Craft {id === "healingStim" ? "Healing Stim" : "Battle Stim"}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div className="mt-6">
