@@ -1,7 +1,7 @@
 "use client"
 
 import type { GameState, Player } from "@/types/game"
-import { CONFIG } from "@/lib/constants"
+import { CONFIG, HOUSE_COLORS } from "@/lib/constants"
 
 interface MapGridProps {
   player: Player
@@ -38,6 +38,7 @@ export function MapGrid({
       let cellTitle = `Desert (${x},${y})`
       let hasBackground = false
       let playerLabel: string | null = null
+      let houseIndicatorClass: string | null = null
 
       // Player
       if (x === playerX && y === playerY) {
@@ -46,6 +47,10 @@ export function MapGrid({
         cellContent = "👤"
         cellTitle = `${player.name} (P${player.prestigeLevel}) - Your Position`
         playerLabel = player.name
+        if (player.house) {
+          const hc = HOUSE_COLORS[player.house as keyof typeof HOUSE_COLORS]
+          if (hc) houseIndicatorClass = `player-color-${hc}`
+        }
       }
       // Other players
       else {
@@ -58,6 +63,10 @@ export function MapGrid({
           cellContent = "👤"
           cellTitle = `${otherPlayerOnCell.name} (P${otherPlayerOnCell.prestigeLevel || 0})`
           playerLabel = otherPlayerOnCell.name
+          if (otherPlayerOnCell.house) {
+            const hc = HOUSE_COLORS[otherPlayerOnCell.house as keyof typeof HOUSE_COLORS]
+            if (hc) houseIndicatorClass = `player-color-${hc}`
+          }
         }
       }
 
@@ -129,6 +138,7 @@ export function MapGrid({
           }
         >
           {playerLabel && <span className="player-name-label">{playerLabel}</span>}
+          {houseIndicatorClass && <span className={`house-indicator ${houseIndicatorClass}`} />}
           {seeker && (
             <span className="seeker-countdown">
               {Math.max(0, Math.ceil((seeker.claimTime - Date.now()) / 1000))}
