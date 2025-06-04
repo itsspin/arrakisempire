@@ -124,7 +124,7 @@ export const STATIC_DATA = {
       description: "The Baron himself. Master of schemes.",
     },
     sandworm: {
-      name: "Shai-Hulud",
+      name: "Infant Sandworm",
       icon: "🐛",
       health: 2000, // Increased from 1400
       attack: 110,
@@ -406,10 +406,10 @@ export const STATIC_DATA = {
       effect: "sandworm_attack",
       duration: 60000, // Short duration before attack
       type: "hazard",
-      triggersNext: "Shai-Hulud Attack", // Triggers the actual attack event
+      triggersNext: "Infant Sandworm Attack", // Triggers the actual attack event
     },
     {
-      name: "Shai-Hulud Attack",
+      name: "Infant Sandworm Attack",
       description: "A sandworm attacks a random territory!",
       icon: "💥",
       effect: "territory_destruction", // New effect type
