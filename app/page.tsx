@@ -72,7 +72,7 @@ const getRandomMapCoords = (mapWidth = CONFIG.MAP_SIZE, mapHeight = CONFIG.MAP_S
 
 // ---- Quest Generation ----
 const createRandomQuest = (): Quest => {
-  const types: Quest["type"][] = ["kill", "territory", "move"]
+  const types: Quest["type"][] = ["kill", "territory", "move", "build"]
   const type = types[getRandomInt(0, types.length - 1)]
   let goal = 1
   switch (type) {
@@ -85,11 +85,15 @@ const createRandomQuest = (): Quest => {
     case "move":
       goal = getRandomInt(10, 30)
       break
+    case "build":
+      goal = 1
+      break
   }
   const descriptions = {
     kill: `Defeat ${goal} enemies`,
     territory: `Acquire ${goal} territories`,
     move: `Travel ${goal} tiles`,
+    build: `Build a base`,
   }
   return {
     id: `quest_${Date.now()}_${Math.random()}`,
@@ -502,36 +506,42 @@ export default function ArrakisGamePage() {
     }))
   }, [])
 
+  const applyQuestProgress = (
+    state: GameState,
+    type: Quest["type"],
+    amount = 1,
+  ): GameState => {
+    let quests = state.quests.map((q) => {
+      if (!q.completed && q.type === type) {
+        const progress = q.progress + amount
+        const completed = progress >= q.goal
+        if (completed) {
+          addNotification(`Quest completed: ${q.description}`, "success")
+        }
+        return { ...q, progress: Math.min(progress, q.goal), completed }
+      }
+      return q
+    })
+    const newlyCompleted = quests.filter((q) => q.completed)
+    const completedQuests = [
+      ...state.completedQuests,
+      ...newlyCompleted.filter((q) => !state.completedQuests.find((c) => c.id === q.id)),
+    ]
+    quests = quests.filter((q) => !q.completed)
+    const newQuests = quests.slice()
+    let xpTotal = 0
+    newlyCompleted.forEach(() => {
+      newQuests.push(createRandomQuest())
+      xpTotal += CONFIG.XP_GAIN_QUEST_COMPLETE
+    })
+    const newPlayer = { ...state.player }
+    if (xpTotal > 0) applyXpGain(newPlayer, xpTotal)
+    return { ...state, quests: newQuests, completedQuests, player: newPlayer }
+  }
+
   const updateQuestProgress = useCallback(
     (type: Quest["type"], amount = 1) => {
-      setGameState((prev) => {
-        let quests = prev.quests.map((q) => {
-          if (!q.completed && q.type === type) {
-            const progress = q.progress + amount
-            const completed = progress >= q.goal
-            if (completed) {
-              addNotification(`Quest completed: ${q.description}`, "success")
-            }
-            return { ...q, progress: Math.min(progress, q.goal), completed }
-          }
-          return q
-        })
-        const newlyCompleted = quests.filter((q) => q.completed)
-        const completedQuests = [
-          ...prev.completedQuests,
-          ...newlyCompleted.filter((q) => !prev.completedQuests.find((c) => c.id === q.id)),
-        ]
-        quests = quests.filter((q) => !q.completed)
-        const newQuests = quests.slice()
-        let xpTotal = 0
-        newlyCompleted.forEach(() => {
-          newQuests.push(createRandomQuest())
-          xpTotal += CONFIG.XP_GAIN_QUEST_COMPLETE
-        })
-        const newPlayer = { ...prev.player }
-        if (xpTotal > 0) applyXpGain(newPlayer, xpTotal)
-        return { ...prev, quests: newQuests, completedQuests, player: newPlayer }
-      })
+      setGameState((prev) => applyQuestProgress(prev, type, amount))
     },
     [addNotification],
   )
@@ -753,6 +763,7 @@ export default function ArrakisGamePage() {
 
         return { ...prev, player: newPlayer, abilityCooldowns: newAbilityCooldowns }
       })
+      updateQuestProgress("territory")
     },
     [addNotification],
   )
@@ -779,6 +790,7 @@ export default function ArrakisGamePage() {
       let trackingTargetId = currentFullGameState.trackingTargetId || null
       const updatedInventory = [...currentFullGameState.inventory] // Use inventory from the ref
       const now = Date.now()
+      let territoriesCaptured = 0
 
       if (result === "win") {
         let xpGained = enemyInstance.xp
@@ -791,7 +803,6 @@ export default function ArrakisGamePage() {
         }
         newPlayer.experience += xpGained
         newPlayer.totalEnemiesDefeated += 1 // Increment total enemies defeated
-        updateQuestProgress("kill")
         if (newPlayer.experience >= newPlayer.experienceToNext) {
           newPlayer.level++
           newPlayer.experience -= newPlayer.experienceToNext
@@ -873,7 +884,7 @@ export default function ArrakisGamePage() {
               ].territories.filter((t) => t.id !== terr.id)
             }
             addNotification(`You captured ${terr.name || terrKey}!`, "success")
-            updateQuestProgress("territory")
+            territoriesCaptured++
             if (oldOwner && oldOwner !== newPlayer.id && enemyInstance.type !== "player") {
               newPlayer.xpBuffMultiplier = 1.5
               newPlayer.xpBuffExpires = now + 60000
@@ -903,7 +914,7 @@ export default function ArrakisGamePage() {
               }
               if (!newPlayer.territories.find((t) => t.id === terr.id)) {
                 newPlayer.territories.push(newMap.territories[tKey])
-                updateQuestProgress("territory")
+                territoriesCaptured++
               }
               if (prevOwner && prevOwner !== newPlayer.id && currentFullGameState.onlinePlayers[prevOwner]) {
                 currentFullGameState.onlinePlayers[prevOwner].territories = currentFullGameState.onlinePlayers[
@@ -1000,7 +1011,7 @@ export default function ArrakisGamePage() {
         combatRound: 0,
       }
 
-      return {
+      let finalState: GameState = {
         ...currentFullGameState, // Use the most recent full game state as base
         player: newPlayer,
         resources: newResources,
@@ -1019,6 +1030,11 @@ export default function ArrakisGamePage() {
           availableAbilitiesForSelection.length > 0 &&
           availableAbilitiesForSelection.some((a) => !newPlayer.unlockedAbilities.find((ua) => ua.id === a.id)),
       }
+      finalState = applyQuestProgress(finalState, "kill")
+      if (territoriesCaptured > 0) {
+        finalState = applyQuestProgress(finalState, "territory", territoriesCaptured)
+      }
+      return finalState
     },
     [addNotification, gameStateRef, availableAbilitiesForSelection], // Added gameStateRef
   )
@@ -2131,7 +2147,6 @@ export default function ArrakisGamePage() {
           newResources.water -= waterCost
           newPlayer.lastActive = Date.now()
           sandwormAttackTime = null
-          updateQuestProgress("move")
         }
 
         // Interaction logic (enemy, resource, item) remains largely the same
@@ -2244,7 +2259,7 @@ export default function ArrakisGamePage() {
           }
         }
 
-        return {
+        let resultState: GameState = {
           ...prev,
           player: newPlayer,
           resources: newResources,
@@ -2252,6 +2267,10 @@ export default function ArrakisGamePage() {
           inventory: updatedInventory,
           sandwormAttackTime,
         }
+        if (isMoving) {
+          resultState = applyQuestProgress(resultState, "move")
+        }
+        return resultState
       })
     },
     [addNotification, handleCombatEnd],
@@ -2366,8 +2385,6 @@ export default function ArrakisGamePage() {
         }
         newMap.territories[territoryId] = updatedTerritory
         newPlayer.territories = [...newPlayer.territories, updatedTerritory] // Add to player's owned territories
-
-        updateQuestProgress("territory")
         applyXpGain(newPlayer, CONFIG.XP_GAIN_TERRITORY_PURCHASE)
 
         addNotification(`Territory ${territory.name || territoryId} purchased!`, "success")
@@ -2427,13 +2444,13 @@ export default function ArrakisGamePage() {
         )
       }
 
-      updateQuestProgress("territory")
       applyXpGain(newPlayer, CONFIG.XP_GAIN_TERRITORY_PURCHASE)
 
       addNotification(`Purchased ${territory.name || randomKey} for ${finalCost.toLocaleString()} Solari!`, "success")
 
       return { ...prev, resources: newResources, player: newPlayer, map: newMap }
     })
+    updateQuestProgress("territory")
   }, [addNotification])
 
   const handleLaunchSeeker = useCallback(() => {
@@ -2662,7 +2679,8 @@ export default function ArrakisGamePage() {
       addNotification("Base constructed!", "success")
       return { ...prev, player: newPlayer }
     })
-  }, [addNotification])
+    updateQuestProgress("build")
+  }, [addNotification, updateQuestProgress])
 
   const handleCraftItem = useCallback(
     (recipeId: keyof typeof CRAFTING_RECIPES) => {

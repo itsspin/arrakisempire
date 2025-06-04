@@ -223,7 +223,7 @@ export interface Ability {
 export interface Quest {
   id: string
   description: string
-  type: "kill" | "territory" | "move"
+  type: "kill" | "territory" | "move" | "build"
   goal: number
   progress: number
   completed: boolean
