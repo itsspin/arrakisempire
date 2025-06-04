@@ -228,6 +228,7 @@ export function MapGrid({
               }
             }
           }}
+          onTouchStart={() => onCellClick(x, y)}
           style={
             territory && territory.ownerId
               ? {
