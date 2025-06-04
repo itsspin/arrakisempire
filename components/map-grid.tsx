@@ -2,6 +2,7 @@
 
 import type { GameState, Player } from "@/types/game"
 import { CONFIG } from "@/lib/constants"
+import { isInBaseArea } from "@/lib/utils"
 
 interface MapGridProps {
   player: Player
@@ -90,6 +91,14 @@ export function MapGrid({
           cellTitle = `Unclaimed Territory (${key}) - Cost: ${territory.purchaseCost}`
         }
         if (territory.ownerId) hasBackground = true
+      }
+
+      // Player base cells
+      if (isInBaseArea(player, x, y)) {
+        cellClass += " map-cell-base"
+        cellContent = "🏠"
+        cellTitle = "Your Base"
+        hasBackground = true
       }
 
 
