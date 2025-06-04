@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { STATIC_DATA } from "@/lib/game-data"
 import type { GameState } from "@/types/game"
 

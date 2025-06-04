@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { Quest } from "@/types/game"
 
 interface QuestPanelProps {

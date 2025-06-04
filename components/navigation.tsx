@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 interface NavigationProps {
   currentTab: string
   onTabChange: (tab: string) => void
