@@ -102,6 +102,13 @@ export interface ResourceNode extends MapElement {
   icon?: string
 }
 
+export interface Seeker extends MapElement {
+  ownerId: string
+  ownerName: string
+  ownerColor: string
+  claimTime: number
+}
+
 export interface Combat {
   active: boolean
   enemy: Enemy | null
@@ -123,6 +130,8 @@ export interface TerritoryDetails extends MapElement {
   // NEW: For Sandworm destruction
   isDestroyed?: boolean
   destroyedUntil?: number
+  // NEW: Track how weakened a territory is when players fail to capture it
+  captureLevel?: number
 }
 
 export interface Investment {
@@ -218,6 +227,7 @@ export interface GameState {
     resources: Record<string, ResourceNode>
     territories: Record<string, TerritoryDetails>
     items: Record<string, Item>
+    seekers: Record<string, Seeker>
   }
   leaderboard: RankedPlayer[]
   isNameModalOpen: boolean
@@ -234,6 +244,13 @@ export interface GameState {
   // NEW: Track last time AI and World Events were processed
   lastAIProcessingTime?: number
   lastWorldEventProcessingTime?: number
+  // NEW: Track which territory is being contested in combat
+  capturingTerritoryId?: string | null
+  // NEW: Pause state
+  isPaused: boolean
+  // NEW: Timestamp when sandworm will attack if player stays idle
+  sandwormAttackTime?: number | null
+  lastSeekerLaunchTime?: number
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"

@@ -2,7 +2,9 @@
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
+
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://v0-arrakis-tycoon.vercel.app)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://arrakis-spice-empire.vercel.app)
 [![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/TLm0pvg2OR0)
 
 ## Overview
@@ -14,11 +16,16 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Your project is live at:
 
+
 **[https://v0-arrakis-tycoon.vercel.app](https://v0-arrakis-tycoon.vercel.app)**
+
+
+
 
 ## Play the Game
 
 Experience Arrakis Spice Empire in your browser:
+
 
 **[https://v0-arrakis-tycoon.vercel.app](https://v0-arrakis-tycoon.vercel.app)**
 
@@ -51,6 +58,13 @@ Recent additions to **Arrakis Spice Empire** include:
 - Houses claim surrounding sectors when enemies are defeated.
 - Ability to sell unused gear for Solari.
 - Enlarged map view for easier territory control on mobile and desktop.
+
+- Empire builder expanded with new ventures and a button to buy random territory.
+=======
+- Defeating an enemy now grants your house control of the surrounding sectors.
+- Ability to sell unused gear for Solari.
+- Enlarged map view for easier risk-style territory control on both desktop and mobile.
+
 
 ## How It Works
 

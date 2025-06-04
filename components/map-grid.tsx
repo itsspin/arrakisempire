@@ -9,9 +9,10 @@ interface MapGridProps {
   onlinePlayers: GameState["onlinePlayers"]
   worldEvents: GameState["worldEvents"]
   onCellClick: (x: number, y: number) => void
+  zoom?: number
 }
 
-export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellClick }: MapGridProps) {
+export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellClick, zoom = 1 }: MapGridProps) {
   const { x: playerX, y: playerY } = player.position
   const radius = CONFIG.VIEW_RADIUS
 
@@ -23,15 +24,19 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
       const isAdjacent = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0)
       const key = `${x},${y}`
 
-      let cellClass = "map-cell map-cell-desert" // Default to desert
-      let cellContent = "" // Default desert cells will be styled by map-cell-desert
+      let cellClass = "map-cell"
+      let cellContent = ""
       let cellTitle = `Desert (${x},${y})`
+      let hasBackground = false
+      let playerLabel: string | null = null
 
       // Player
       if (x === playerX && y === playerY) {
         cellClass += " map-cell-player"
+        hasBackground = true
         cellContent = "👤"
         cellTitle = `${player.name} (P${player.prestigeLevel}) - Your Position`
+        playerLabel = player.name
       }
       // Other players
       else {
@@ -40,8 +45,10 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         )
         if (otherPlayerOnCell) {
           cellClass += ` map-cell-other-player player-color-${otherPlayerOnCell.color || "gray"}`
+          hasBackground = true
           cellContent = "👤"
           cellTitle = `${otherPlayerOnCell.name} (P${otherPlayerOnCell.prestigeLevel || 0})`
+          playerLabel = otherPlayerOnCell.name
         }
       }
 
@@ -57,32 +64,27 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         } else {
           cellTitle = `Unclaimed Territory (${key}) - Cost: ${territory.purchaseCost}`
         }
+        if (territory.ownerId) hasBackground = true
       }
 
-      // Items (New)
-      const itemOnCell = mapData.items[key]
-      if (itemOnCell && cellContent === "") {
-        cellClass += " map-cell-item" // Add a specific class for items if needed
-        cellContent = itemOnCell.icon
-        cellTitle = `${itemOnCell.name} (${itemOnCell.rarity})`
-      }
 
       // Enemies
       const enemy = mapData.enemies[key]
       if (enemy && cellContent === "") {
-        // Prioritize player/other players over enemies for icon
         cellClass += enemy.boss ? " map-cell-boss" : enemy.special ? " map-cell-special-enemy" : " map-cell-enemy"
         cellContent = enemy.icon
         cellTitle = `${enemy.name} (Lv.${enemy.level})`
+        hasBackground = true
       }
 
-      // Resources
-      const resource = mapData.resources[key]
-      if (resource && cellContent === "") {
-        cellClass += ` map-cell-resource-${resource.type}`
-        const icons = { spice: "✨", water: "💧", plasteel: "🔧", rareMaterials: "💎" }
-        cellContent = icons[resource.type] || "📦"
-        cellTitle = `${resource.type.charAt(0).toUpperCase() + resource.type.slice(1)} (${resource.amount})`
+
+      // Seekers
+      const seeker = mapData.seekers[key]
+      if (seeker && cellContent === "") {
+        cellClass += " map-cell-seeker"
+        cellContent = "🛰️"
+        cellTitle = `Seeker from ${seeker.ownerName}`
+        hasBackground = true
       }
 
       // World Events Markers (can be an overlay on the cell)
@@ -91,10 +93,15 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         cellClass += " map-cell-world-event"
         cellContent = eventOnCell.icon
         cellTitle = `${eventOnCell.name}: ${eventOnCell.description}`
+        hasBackground = true
       }
 
       if (isAdjacent) {
         cellClass += " map-cell-movable"
+      }
+
+      if (!hasBackground) {
+        cellClass += " map-cell-desert"
       }
 
       cells.push(
@@ -112,11 +119,26 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
               : {}
           }
         >
+          {playerLabel && <span className="player-name-label">{playerLabel}</span>}
+          {seeker && (
+            <span className="seeker-countdown">
+              {Math.max(0, Math.ceil((seeker.claimTime - Date.now()) / 1000))}
+            </span>
+          )}
           {cellContent}
         </div>,
       )
     }
   }
 
-  return <div className="map-grid mx-auto overflow-x-auto">{cells}</div>
+  const gridStyle = {
+    "--cell-size": `${32 * zoom}px`,
+    "--map-columns": radius * 2 + 1,
+  } as React.CSSProperties
+
+  return (
+    <div className="map-grid mx-auto overflow-x-auto" style={gridStyle}>
+      {cells}
+    </div>
+  )
 }

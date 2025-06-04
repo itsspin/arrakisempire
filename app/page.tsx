@@ -25,6 +25,9 @@ import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
 import { UpdatesTab } from "@/components/updates-tab"
+import { Slider } from "@/components/ui/slider"
+import { PauseModal } from "@/components/modals/pause-modal"
+import { SandwormWarning } from "@/components/sandworm-warning"
 
 import type {
   GameState,
@@ -41,7 +44,7 @@ import type {
   AIPlayer, // Added AIPlayer
   PlayerColor,
 } from "@/types/game"
-import { CONFIG, PLAYER_COLORS, RARITY_SCORES } from "@/lib/constants"
+import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
@@ -83,6 +86,7 @@ const generateMockTerritories = (): Record<string, TerritoryDetails> => {
         perks: [`+${Math.floor(Math.random() * 5 + 1)}% Spice Production`],
         name: `Sector ${String.fromCharCode(65 + x)}${y + 1}`,
         isDestroyed: false, // Initialize as not destroyed
+        captureLevel: 0,
       }
     }
   }
@@ -224,9 +228,11 @@ const getInitialResourcesState = (): Resources => ({
 
 const initialMapData = {
   enemies: generateMockEnemies(),
-  resources: generateMockResources(),
+  resources: {},
   territories: generateMockTerritories(),
+  items: {},
   items: generateMockItems(),
+  seekers: {},
 }
 
 // Function to create an AI player with initial state
@@ -320,6 +326,10 @@ const initialGameState: GameState = {
   abilityCooldowns: {},
   lastAIProcessingTime: 0, // NEW
   lastWorldEventProcessingTime: 0, // NEW
+  capturingTerritoryId: null,
+  isPaused: false,
+  sandwormAttackTime: null,
+  lastSeekerLaunchTime: 0,
 }
 
 const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
@@ -337,6 +347,20 @@ const calculateEquipmentScore = (equipment: GameState["equipment"]): number => {
   return score
 }
 
+// Calculate an overall score for ranking players
+const calculatePlayerScore = (
+  territoryCount: number,
+  solari: number,
+  equipmentScore: number,
+  kills: number,
+): number => {
+  const territoryScore = territoryCount * 100
+  const killScore = kills * 20
+  const itemScore = equipmentScore * 50
+  const solariScore = solari * 0.02
+  return territoryScore + killScore + itemScore + solariScore
+}
+
 // Fetch leaderboard data for all players from Firestore
 const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
   const snapshot = await getDocs(collection(db, "players"))
@@ -345,25 +369,29 @@ const fetchLeaderboardData = async (): Promise<RankedPlayer[]> => {
     const data = docSnap.data() as GameState
     if (!data?.player) return
     const equipmentScore = calculateEquipmentScore(data.equipment)
-    const power =
-      data.resources.solari * 0.01 +
-      data.player.territories.length * 50 +
-      equipmentScore * 100 +
-      data.player.totalEnemiesDefeated * 5
-    const rank = Math.max(1, 100 - Math.floor(power / 100))
-    const rankName = rank < 10 ? "Spice Baron" : rank < 50 ? "Guild Associate" : "Sand Nomad"
+    const score = calculatePlayerScore(
+      data.player.territories?.length ?? 0,
+      data.resources?.solari ?? 0,
+      equipmentScore,
+      data.player.totalEnemiesDefeated ?? 0,
+    )
     players.push({
       id: data.player.id || docSnap.id,
       name: data.player.name,
-      rank,
-      rankName,
+      rank: 0,
+      rankName: "",
       house: data.player.house,
       prestigeLevel: data.player.prestigeLevel,
       color: data.player.color,
-      power,
+      power: score,
     })
   })
-  return players.sort((a, b) => b.power - a.power)
+  const sorted = players.sort((a, b) => b.power - a.power)
+  return sorted.map((p, i) => {
+    const rank = i + 1
+    const rankName = rank < 10 ? "Spice Baron" : rank < 50 ? "Guild Associate" : "Sand Nomad"
+    return { ...p, rank, rankName }
+  })
 }
 
 // --- CONFIGURATION FOR NEW SYSTEMS ---
@@ -382,8 +410,8 @@ const ENEMY_MOVEMENT_CONFIG = {
 export default function ArrakisGamePage() {
   const [gameState, setGameState] = useState<GameState>(initialGameState)
   const [isLoading, setIsLoading] = useState(true)
-  const [itemRespawnQueue, setItemRespawnQueue] = useState<Record<string, { item: Item; respawnTime: number }>>({})
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
+  const [zoom, setZoom] = useState(1.2)
 
   const lastGeneralNotificationTime = useRef(0)
   const GENERAL_NOTIFICATION_COOLDOWN = 1000
@@ -451,7 +479,10 @@ export default function ArrakisGamePage() {
                     ...newMapTerritories[key],
                     ownerId: aiPlayer.id,
                     ownerName: aiPlayer.name,
-                    ownerColor: aiPlayer.color,
+                    ownerColor:
+                      HOUSE_COLORS[
+                        aiPlayer.house as keyof typeof HOUSE_COLORS
+                      ] || aiPlayer.color,
                   }
                 }
               })
@@ -481,6 +512,7 @@ export default function ArrakisGamePage() {
             map: {
               ...initialMapData,
               territories: newMapTerritories,
+              seekers: savedState.map?.seekers || {},
             },
             onlinePlayers: updatedOnlinePlayers, // Use updated AIs
             unlockedAbilities: savedState.player.unlockedAbilities || [],
@@ -521,7 +553,9 @@ export default function ArrakisGamePage() {
                   ...terrToClaim,
                   ownerId: ai.id,
                   ownerName: ai.name,
-                  ownerColor: ai.color,
+                  ownerColor:
+                    HOUSE_COLORS[ai.house as keyof typeof HOUSE_COLORS] ||
+                    ai.color,
                 }
                 ai.territories.push(newGameState.map.territories[key])
               }
@@ -637,7 +671,11 @@ export default function ArrakisGamePage() {
       const currentFullGameState = gameStateRef.current // Use ref for up-to-date inventory etc.
       const newPlayer = { ...playerState }
       const newResources = { ...resourcesState }
-      const newMap = { ...mapState, enemies: { ...mapState.enemies } } // Be careful with deep copies if needed
+      const newMap = {
+        ...mapState,
+        enemies: { ...mapState.enemies },
+        territories: { ...mapState.territories },
+      } // Be careful with deep copies if needed
       const updatedInventory = [...currentFullGameState.inventory] // Use inventory from the ref
 
       if (result === "win") {
@@ -695,13 +733,94 @@ export default function ArrakisGamePage() {
         })
         const enemyKey = `${enemyInstance.position.x},${enemyInstance.position.y}`
         if (newMap.enemies[enemyKey]) {
-          // Check if enemy still exists before updating
-          newMap.enemies[enemyKey] = { ...enemyInstance, cooldownUntil: Date.now() + CONFIG.ENEMY_COOLDOWN }
+          delete newMap.enemies[enemyKey]
         }
+        if (currentFullGameState.capturingTerritoryId) {
+          const terrKey = currentFullGameState.capturingTerritoryId
+          const terr = newMap.territories[terrKey]
+          if (terr) {
+            const oldOwner = terr.ownerId
+            newMap.territories[terrKey] = {
+              ...terr,
+              ownerId: newPlayer.id,
+              ownerName: newPlayer.name,
+              ownerColor:
+                HOUSE_COLORS[newPlayer.house as keyof typeof HOUSE_COLORS] ||
+                newPlayer.color,
+              captureLevel: 0,
+            }
+            newPlayer.territories = [...newPlayer.territories, newMap.territories[terrKey]]
+            if (oldOwner && currentFullGameState.onlinePlayers[oldOwner]) {
+              currentFullGameState.onlinePlayers[oldOwner].territories = currentFullGameState.onlinePlayers[oldOwner].territories.filter(
+                (t) => t.id !== terr.id,
+              )
+            }
+            addNotification(`You captured ${terr.name || terrKey}!`, "success")
+          }
+        }
+
+        // Claim surrounding sectors for the player's house
+        const directions = [-1, 0, 1]
+        directions.forEach((dx) => {
+          directions.forEach((dy) => {
+            if (dx === 0 && dy === 0) return
+            const tx = enemyInstance.position.x + dx
+            const ty = enemyInstance.position.y + dy
+            if (tx < 0 || tx >= CONFIG.MAP_SIZE || ty < 0 || ty >= CONFIG.MAP_SIZE) return
+            const tKey = `${tx},${ty}`
+            const terr = newMap.territories[tKey]
+            if (terr) {
+              const prevOwner = terr.ownerId
+              newMap.territories[tKey] = {
+                ...terr,
+                ownerId: newPlayer.id,
+                ownerName: newPlayer.name,
+                ownerColor: newPlayer.color,
+                captureLevel: 0,
+              }
+              if (!newPlayer.territories.find((t) => t.id === terr.id)) {
+                newPlayer.territories.push(newMap.territories[tKey])
+              }
+              if (
+                prevOwner &&
+                prevOwner !== newPlayer.id &&
+                currentFullGameState.onlinePlayers[prevOwner]
+              ) {
+                currentFullGameState.onlinePlayers[prevOwner].territories = currentFullGameState.onlinePlayers[prevOwner].territories.filter(
+                  (t) => t.id !== terr.id,
+                )
+              }
+            }
+          })
+        })
+        addNotification("Your house seizes the surrounding territory!", "success")
       } else if (result === "lose") {
         newPlayer.position = { ...newPlayer.basePosition }
         newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
         addNotification("You respawned at your base.", "info")
+        if (currentFullGameState.capturingTerritoryId) {
+          const terrKey = currentFullGameState.capturingTerritoryId
+          const terr = newMap.territories[terrKey]
+          if (terr) {
+            const newLevel = (terr.captureLevel || 0) + 1
+            terr.captureLevel = newLevel
+            if (newLevel >= CONFIG.TERRITORY_CAPTURE_THRESHOLD) {
+              terr.ownerId = null
+              terr.ownerName = undefined
+              terr.ownerColor = undefined
+              addNotification(
+                `${terr.name || terrKey} is now unclaimed after heavy fighting!`,
+                "info",
+              )
+            } else {
+              addNotification(
+                `Territory weakened (${newLevel}/${CONFIG.TERRITORY_CAPTURE_THRESHOLD}).`,
+                "warning",
+              )
+            }
+            newMap.territories[terrKey] = { ...terr }
+          }
+        }
       }
 
       const resetCombat = {
@@ -722,6 +841,7 @@ export default function ArrakisGamePage() {
         combat: resetCombat,
         isCombatModalOpen: false,
         inventory: updatedInventory,
+        capturingTerritoryId: null,
         // If ability modal should open, set flag here:
         isAbilitySelectionModalOpen:
           result === "win" &&
@@ -925,7 +1045,9 @@ export default function ArrakisGamePage() {
             ...newMapTerritories[key],
             ownerId: newPlayer.id,
             ownerName: newPlayer.name,
-            ownerColor: newPlayer.color,
+            ownerColor:
+              HOUSE_COLORS[newPlayer.house as keyof typeof HOUSE_COLORS] ||
+              newPlayer.color,
           }
         }
       })
@@ -937,9 +1059,16 @@ export default function ArrakisGamePage() {
           // Give AIs new random territories
           const unownedTerritories = Object.values(newMapTerritories).filter((t) => !t.ownerId)
           if (unownedTerritories.length > 0) {
-            const terrToClaim = unownedTerritories[getRandomInt(0, unownedTerritories.length - 1)]
+            const terrToClaim =
+              unownedTerritories[getRandomInt(0, unownedTerritories.length - 1)]
             const key = `${terrToClaim.position.x},${terrToClaim.position.y}`
-            newMapTerritories[key] = { ...terrToClaim, ownerId: ai.id, ownerName: ai.name, ownerColor: ai.color }
+            newMapTerritories[key] = {
+              ...terrToClaim,
+              ownerId: ai.id,
+              ownerName: ai.name,
+              ownerColor:
+                HOUSE_COLORS[ai.house as keyof typeof HOUSE_COLORS] || ai.color,
+            }
             ai.territories.push(newMapTerritories[key])
           }
         }
@@ -956,6 +1085,7 @@ export default function ArrakisGamePage() {
         map: {
           ...initialMapData,
           territories: newMapTerritories, // Use the new map with reset/reassigned territories
+          seekers: {},
         },
         onlinePlayers: newOnlinePlayers, // Update online players with new territories
         isPrestigeModalOpen: false,
@@ -1105,14 +1235,13 @@ export default function ArrakisGamePage() {
         return
 
       setGameState((prev) => {
+        if (prev.isPaused) return prev
         const now = Date.now()
         const newPlayer = { ...prev.player }
         const newResources = { ...prev.resources }
         const newMap = {
           ...prev.map,
           enemies: { ...prev.map.enemies },
-          resources: { ...prev.map.resources },
-          items: { ...prev.map.items },
           territories: { ...prev.map.territories }, // Ensure territories are mutable
         }
         const newAbilityCooldowns = { ...prev.abilityCooldowns }
@@ -1173,32 +1302,53 @@ export default function ArrakisGamePage() {
         })
 
         // --- 2. Cooldowns & Respawns (Enemies, Resources, Items - existing logic) ---
+
+        // Enemy cooldowns and item respawns removed for streamlined gameplay
         Object.entries(newMap.enemies).forEach(([key, enemy]) => {
           if (enemy.cooldownUntil && now >= enemy.cooldownUntil) {
             const originalEnemyData = STATIC_DATA.ENEMIES[enemy.type as keyof typeof STATIC_DATA.ENEMIES]
             newMap.enemies[key] = { ...enemy, currentHealth: originalEnemyData.health, cooldownUntil: null }
           }
         })
-        // (Resource and Item respawn logic - assuming it's largely correct from before)
-        // Item Respawn Logic (from original code)
-        const newRespawnQueue = { ...itemRespawnQueue }
-        Object.entries(newRespawnQueue).forEach(([itemId, { item, respawnTime }]) => {
-          if (now >= respawnTime) {
+
+        const activeEnemyCount = Object.values(newMap.enemies).filter((e) => !e.cooldownUntil).length
+        const maxEnemies = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * CONFIG.MAX_DYNAMIC_ENEMIES_FACTOR)
+        if (activeEnemyCount < maxEnemies && Math.random() < CONFIG.NEW_ENEMY_SPAWN_CHANCE_PER_TICK) {
+          const enemyKeys = Object.keys(STATIC_DATA.ENEMIES) as Array<keyof typeof STATIC_DATA.ENEMIES>
+          for (let i = 0; i < 20; i++) {
             const { x, y } = getRandomMapCoords()
-            const newKey = `${x},${y}`
-            if (!newMap.items[newKey] && !newMap.enemies[newKey] && !newMap.resources[newKey]) {
-              // Check if cell is empty
-              newMap.items[newKey] = { ...item, id: `item_${newKey}`, position: { x, y } }
-              addNotification(`An item (${item.name}) has respawned at (${x},${y}).`, "info")
-              delete newRespawnQueue[itemId]
-            } else {
-              // Reschedule if cell is occupied
-              newRespawnQueue[itemId].respawnTime = now + 10000 // Try again in 10s
+            const spawnKey = `${x},${y}`
+            if (
+              !newMap.enemies[spawnKey] &&
+              !newMap.resources[spawnKey] &&
+              !newMap.items[spawnKey] &&
+              !newMap.territories[spawnKey].isDestroyed
+            ) {
+              const typeKey = enemyKeys[getRandomInt(0, enemyKeys.length - 1)]
+              const data = STATIC_DATA.ENEMIES[typeKey]
+              newMap.enemies[spawnKey] = {
+                id: `enemy_${spawnKey}`,
+                type: typeKey,
+                name: data.name,
+                icon: data.icon,
+                health: data.health,
+                currentHealth: data.health,
+                attack: data.attack,
+                defense: data.defense,
+                xp: data.xp,
+                loot: data.loot,
+                level: data.level,
+                description: data.description,
+                boss: data.boss || false,
+                special: data.special || false,
+                legendary: data.legendary || false,
+                lastMoveAttempt: 0,
+              }
+              addNotification(`${data.name} has appeared at (${x},${y})`, "info")
+              break
             }
           }
-        })
-        // No direct setItemRespawnQueue here, it's managed outside setGameState usually or returned.
-        // For simplicity, assume itemRespawnQueue is updated correctly if needed.
+        }
 
         // --- 3. NEW: Dynamic World Event Management ---
         if (now - (prev.lastWorldEventProcessingTime || 0) >= 5000) {
@@ -1272,6 +1422,43 @@ export default function ArrakisGamePage() {
               }
               newWorldEvents.push(newEvent)
               addNotification(`New Event: ${newEvent.name}! - ${newEvent.description}`, "warning")
+
+              if (newEvent.effect === "territory_loss" && newEvent.effectValue) {
+                const ownedKeys = Object.keys(newMap.territories).filter(
+                  (tKey) => newMap.territories[tKey].ownerId,
+                )
+                const removeCount = Math.max(
+                  1,
+                  Math.floor(ownedKeys.length * newEvent.effectValue),
+                )
+                for (let i = 0; i < removeCount && ownedKeys.length > 0; i++) {
+                  const idx = getRandomInt(0, ownedKeys.length - 1)
+                  const terrKey = ownedKeys.splice(idx, 1)[0]
+                  const terr = newMap.territories[terrKey]
+                  const ownerId = terr.ownerId
+                  if (ownerId) {
+                    if (ownerId === newPlayer.id) {
+                      newPlayer.territories = newPlayer.territories.filter(
+                        (t) => t.id !== terr.id,
+                      )
+                      addNotification(
+                        `Sandstorm reclaimed ${terr.name || terrKey}!`,
+                        "warning",
+                      )
+                    } else if (newOnlinePlayers[ownerId]) {
+                      newOnlinePlayers[ownerId].territories = newOnlinePlayers[ownerId].territories.filter(
+                        (t) => t.id !== terr.id,
+                      )
+                    }
+                    newMap.territories[terrKey] = {
+                      ...terr,
+                      ownerId: null,
+                      ownerName: undefined,
+                      ownerColor: undefined,
+                    }
+                  }
+                }
+              }
               if (newEvent.rewards) {
                 // Apply immediate rewards
                 if (newEvent.rewards.spice) newResources.spice += newEvent.rewards.spice
@@ -1354,7 +1541,10 @@ export default function ArrakisGamePage() {
                     ...targetTerritory,
                     ownerId: ai.id,
                     ownerName: ai.name,
-                    ownerColor: ai.color,
+                    ownerColor:
+                      HOUSE_COLORS[ai.house as keyof typeof HOUSE_COLORS] ||
+                      ai.color,
+                    captureLevel: 0,
                   }
                   ai.territories.push(newMap.territories[key]) // Add to AI's list
                   addNotification(`${ai.name} (${ai.house}) has claimed Sector ${targetTerritory.name || key}!`, "info")
@@ -1365,12 +1555,42 @@ export default function ArrakisGamePage() {
           prev.lastAIProcessingTime = now // Update time
         }
 
+        // --- 5. Seeker Claim Processing ---
+        Object.entries(newMap.seekers).forEach(([sKey, seeker]) => {
+          if (now >= seeker.claimTime) {
+            const terr = newMap.territories[sKey]
+            if (terr) {
+              const updatedTerr = {
+                ...terr,
+                ownerId: seeker.ownerId,
+                ownerName: seeker.ownerName,
+                ownerColor: seeker.ownerColor,
+                captureLevel: 0,
+              }
+              newMap.territories[sKey] = updatedTerr
+              if (seeker.ownerId === newPlayer.id) {
+                const alreadyOwned = newPlayer.territories.find(
+                  (t) => t.position.x === updatedTerr.position.x && t.position.y === updatedTerr.position.y,
+                )
+                if (!alreadyOwned) newPlayer.territories.push(updatedTerr)
+                addNotification(`Your Seeker claimed ${terr.name || sKey}!`, "success")
+              } else if (newOnlinePlayers[seeker.ownerId]) {
+                const ai = newOnlinePlayers[seeker.ownerId]
+                if (!ai.territories.find((t) => t.id === updatedTerr.id)) {
+                  ai.territories.push(updatedTerr)
+                }
+              }
+            }
+            delete newMap.seekers[sKey]
+          }
+        })
+
         // --- 5. NEW: Enemy Movement ---
         if (now - (prev.player.lastActive || 0) > ENEMY_MOVEMENT_CONFIG.PROCESSING_INTERVAL) {
           // Link to player activity or fixed interval
           Object.keys(newMap.enemies).forEach((key) => {
             const enemy = newMap.enemies[key]
-            if (enemy && !enemy.cooldownUntil && !enemy.boss && !enemy.isMoving) {
+            if (enemy && !enemy.boss && !enemy.isMoving) {
               // Non-boss, active enemies
               if (Math.random() < ENEMY_MOVEMENT_CONFIG.MOVEMENT_CHANCE) {
                 const { x: ex, y: ey } = enemy.position
@@ -1411,12 +1631,68 @@ export default function ArrakisGamePage() {
 
                   newMap.enemies[newKey] = { ...enemy, position: newPos, id: `enemy_${newKey}` }
                   delete newMap.enemies[key] // Remove from old position
+
+                  const terr = newMap.territories[newKey]
+                  if (terr && terr.ownerId) {
+                    const ownerId = terr.ownerId
+                    if (ownerId === newPlayer.id) {
+                      newPlayer.territories = newPlayer.territories.filter(
+                        (t) => t.id !== terr.id,
+                      )
+                      addNotification(
+                        `${enemy.name} captured your territory ${terr.name || newKey}!`,
+                        "warning",
+                      )
+                    } else if (newOnlinePlayers[ownerId]) {
+                      newOnlinePlayers[ownerId].territories = newOnlinePlayers[ownerId].territories.filter(
+                        (t: any) => t.id !== terr.id,
+                      )
+                    }
+                    newMap.territories[newKey] = {
+                      ...terr,
+                      ownerId: null,
+                      ownerName: undefined,
+                      ownerColor: undefined,
+                      captureLevel: 0,
+                    }
+                  }
                   // addNotification(`${enemy.name} moved to ${newPos.x},${newPos.y}.`, 'info'); // Can be spammy
                 }
               }
             }
           })
           // newPlayer.lastActive = now; // If linked to player activity, but for general tick, this is not needed.
+        }
+
+        // Idle sandworm warning and attack
+        const idleTime = now - newPlayer.lastActive
+        if (!sandwormAttackTime && idleTime >= CONFIG.IDLE_TIME_BEFORE_WORM) {
+          sandwormAttackTime = now + CONFIG.SANDWORM_COUNTDOWN
+          newNotifications.push({
+            id: now.toString(),
+            message: "Wormsign! Move or be eaten soon!",
+            type: "warning",
+          })
+        }
+        if (sandwormAttackTime && idleTime < CONFIG.IDLE_TIME_BEFORE_WORM) {
+          sandwormAttackTime = null
+        }
+        if (sandwormAttackTime && now >= sandwormAttackTime) {
+          const ownedKeys = [...newPlayer.territories.map((t) => `${t.position.x},${t.position.y}`)]
+          const removeCount = Math.max(1, Math.floor(ownedKeys.length * 0.2))
+          for (let i = 0; i < removeCount && ownedKeys.length > 0; i++) {
+            const idx = getRandomInt(0, ownedKeys.length - 1)
+            const terrKey = ownedKeys.splice(idx, 1)[0]
+            const terr = newMap.territories[terrKey]
+            if (terr) {
+              newMap.territories[terrKey] = { ...terr, ownerId: null, ownerName: undefined, ownerColor: undefined }
+              newPlayer.territories = newPlayer.territories.filter((t) => t.id !== terr.id)
+            }
+          }
+          newPlayer.position = { ...newPlayer.basePosition }
+          newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
+          newNotifications.push({ id: (now + 1).toString(), message: "A sandworm devours you!", type: "legendary" })
+          sandwormAttackTime = null
         }
 
         // --- Update player rank, ability cooldowns (existing logic) ---
@@ -1426,15 +1702,16 @@ export default function ArrakisGamePage() {
           }
         }
 
-        // Calculate power for current player
+        // Calculate score for current player
         const playerEquipmentScore = calculateEquipmentScore(prev.equipment)
-        newPlayer.power =
-          newResources.solari * 0.01 + // 1 Solari = 0.01 power
-          newPlayer.territories.length * 50 + // 1 territory = 50 power
-          playerEquipmentScore * 100 + // 1 equipment rarity point = 100 power
-          newPlayer.totalEnemiesDefeated * 5 // 1 kill = 5 power
+        newPlayer.power = calculatePlayerScore(
+          newPlayer.territories.length,
+          newResources.solari,
+          playerEquipmentScore,
+          newPlayer.totalEnemiesDefeated,
+        )
 
-        // Update player rank based on power (lower rank number is better)
+        // Update player rank based on score (lower rank number is better)
         newPlayer.rank = Math.max(1, 100 - Math.floor(newPlayer.power / 100))
         newPlayer.rankName =
           newPlayer.rank < 10 ? "Spice Baron" : newPlayer.rank < 50 ? "Guild Associate" : "Sand Nomad"
@@ -1455,15 +1732,16 @@ export default function ArrakisGamePage() {
 
         // Add AI players
         Object.values(newOnlinePlayers).forEach((ai) => {
-          // Calculate AI power (simplified for now, can be expanded)
+          // Calculate AI score
           const aiEquipmentScore = calculateEquipmentScore(
             ai.equipment || { weapon: null, armor: null, accessory: null },
           )
-          ai.power =
-            ai.resources.solari * 0.01 +
-            ai.territories.length * 50 +
-            aiEquipmentScore * 100 +
-            ai.totalEnemiesDefeated * 5
+          ai.power = calculatePlayerScore(
+            ai.territories.length,
+            ai.resources.solari,
+            aiEquipmentScore,
+            ai.totalEnemiesDefeated,
+          )
 
           ai.rank = Math.max(1, 100 - Math.floor(ai.power / 100))
           ai.rankName = ai.rank < 10 ? "Spice Baron" : ai.rank < 50 ? "Guild Associate" : "Sand Nomad"
@@ -1501,6 +1779,7 @@ export default function ArrakisGamePage() {
           leaderboard: updatedLeaderboard, // Use the newly calculated leaderboard
           abilityCooldowns: newAbilityCooldowns,
           notifications: newNotifications, // Persist notifications from this tick
+          sandwormAttackTime,
         }
       })
     }, 1000) // Main game tick interval (1 second)
@@ -1551,27 +1830,69 @@ export default function ArrakisGamePage() {
     (targetX: number, targetY: number) => {
       setGameState((prev) => {
         // Ensure we are not in a blocking modal
+        if (prev.isPaused) {
+          addNotification("Game is paused!", "warning")
+          return prev
+        }
         if (prev.isCombatModalOpen || prev.isAbilitySelectionModalOpen) {
           addNotification("Cannot perform action during active modal!", "warning")
           return prev
         }
 
         const { player, resources, map, onlinePlayers } = prev // Include onlinePlayers
+        let sandwormAttackTime = prev.sandwormAttackTime
         const dx = targetX - player.position.x
         const dy = targetY - player.position.y
         const key = `${targetX},${targetY}`
         const enemyOnCell = map.enemies[key]
-        const resourceOnCell = map.resources[key]
-        const itemOnCell = map.items[key]
         const territoryOnCell = map.territories[key] // Get territory info
 
-        // Check for AI player on the target cell (player cannot move onto AI cell for now)
+        // Check for AI player on the target cell
         const aiPlayerOnCell = Object.values(onlinePlayers).find(
           (ai) => ai.position.x === targetX && ai.position.y === targetY,
         )
-        if (aiPlayerOnCell && (dx !== 0 || dy !== 0) /* if moving to it */) {
-          addNotification(`Cell occupied by ${aiPlayerOnCell.name}. Cannot move there.`, "warning")
+
+        const isMoving = dx !== 0 || dy !== 0
+
+        if (isMoving && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+          addNotification("You can only move to adjacent tiles!", "warning")
           return prev
+        }
+        if (aiPlayerOnCell && (dx !== 0 || dy !== 0)) {
+          if (player.house && aiPlayerOnCell.house === player.house) {
+            addNotification("You cannot attack a member of your own house!", "warning")
+            return prev
+          }
+          const enemyPlayer: Enemy = {
+            id: `player_${aiPlayerOnCell.id}`,
+            type: "player",
+            name: aiPlayerOnCell.name,
+            icon: "👤",
+            health: aiPlayerOnCell.maxHealth,
+            currentHealth: aiPlayerOnCell.maxHealth,
+            attack: aiPlayerOnCell.attack,
+            defense: aiPlayerOnCell.defense,
+            xp: aiPlayerOnCell.level * 20,
+            loot: {},
+            level: aiPlayerOnCell.level,
+            position: { x: targetX, y: targetY },
+            description: "Rival Player",
+          }
+          addNotification(`You engage ${aiPlayerOnCell.name} in combat!`, "info")
+          return {
+            ...prev,
+            player: { ...player, isDefending: false },
+            isCombatModalOpen: true,
+            combat: {
+              active: true,
+              enemy: enemyPlayer,
+              turn: "player",
+              log: [`<p class="log-info">You engage ${aiPlayerOnCell.name} in combat!</p>`],
+              playerHealthAtStart: player.health,
+              enemyHealthAtStart: enemyPlayer.health,
+              combatRound: 1,
+            },
+          }
         }
 
         // Check if territory is destroyed by sandworm (player cannot move or interact)
@@ -1594,7 +1915,6 @@ export default function ArrakisGamePage() {
         }
         waterCost = Math.round(waterCost * 10) / 10 // Round to one decimal
 
-        const isMoving = dx !== 0 || dy !== 0
         if (isMoving && resources.water < waterCost) {
           addNotification(`Not enough water to move (cost: ${waterCost})!`, "warning")
           return prev
@@ -1602,22 +1922,24 @@ export default function ArrakisGamePage() {
 
         const newPlayer = { ...player }
         const newResources = { ...resources }
-        const newMap = { ...map, enemies: { ...map.enemies }, resources: { ...map.resources }, items: { ...map.items } }
+        const newMap = { ...map, enemies: { ...map.enemies } }
         const updatedInventory = [...prev.inventory]
 
         if (isMoving) {
           newPlayer.position = { x: targetX, y: targetY }
           newResources.water -= waterCost
+          newPlayer.lastActive = Date.now()
+          sandwormAttackTime = null
         }
 
         // Interaction logic (enemy, resource, item) remains largely the same
-        if (enemyOnCell && !enemyOnCell.cooldownUntil) {
+        if (enemyOnCell) {
           // ... (combat initiation logic from original, ensure it uses scaledEnemy correctly)
           const originalEnemyData = STATIC_DATA.ENEMIES[enemyOnCell.type as keyof typeof STATIC_DATA.ENEMIES]
           let targetEnemyLevel = player.level
-          if (originalEnemyData.boss) targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 2))
-          else if (originalEnemyData.special) targetEnemyLevel = Math.max(1, player.level + getRandomInt(0, 1))
-          else targetEnemyLevel = Math.max(1, player.level - getRandomInt(0, 1))
+          if (originalEnemyData.boss) targetEnemyLevel = Math.max(1, player.level + getRandomInt(1, 3))
+          else if (originalEnemyData.special) targetEnemyLevel = Math.max(1, player.level + getRandomInt(1, 2))
+          else targetEnemyLevel = Math.max(1, player.level + getRandomInt(-1, 1))
 
           const levelDifference = targetEnemyLevel - originalEnemyData.level
           // Ensure scalingMultiplier is always positive and adjust by player gear
@@ -1627,8 +1949,9 @@ export default function ArrakisGamePage() {
             (player.equipment?.accessory?.attack || 0) +
             (player.equipment?.accessory?.defense || 0)
           const gearMultiplier = 1 + gearPower * CONFIG.GEAR_SCALING_FACTOR
-          const scalingMultiplier =
-            Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR) * gearMultiplier
+          const baseScaling = Math.max(0.1, 1 + levelDifference * CONFIG.ENEMY_SCALING_FACTOR)
+          const specialBonus = originalEnemyData.special ? 1 + CONFIG.SPECIAL_ENEMY_SCALING_BONUS : 1
+          const scalingMultiplier = baseScaling * gearMultiplier * specialBonus
 
           const scaledEnemy: Enemy = {
             ...enemyOnCell,
@@ -1651,6 +1974,7 @@ export default function ArrakisGamePage() {
             ...prev,
             player: { ...newPlayer, isDefending: false },
             resources: newResources,
+            sandwormAttackTime,
             isCombatModalOpen: true,
             combat: {
               active: true,
@@ -1662,45 +1986,79 @@ export default function ArrakisGamePage() {
               combatRound: 1,
             },
           }
-        } else if (resourceOnCell && !resourceOnCell.cooldownUntil) {
-          // ... (resource harvesting logic from original)
-          let amountHarvested = Math.min(resourceOnCell.amount, 10)
-          if (player.activeAbility?.id === "spiceTrance") {
-            // Simplified check
-            amountHarvested = Math.floor(amountHarvested * (1 + (player.activeAbility.effectValue || 100) / 100))
-          }
-          ;(newResources as any)[resourceOnCell.type] += amountHarvested
-          addNotification(`Harvested ${amountHarvested} ${resourceOnCell.type}.`, "success")
-          newMap.resources[key] = {
-            ...resourceOnCell,
-            amount: resourceOnCell.amount - amountHarvested,
-          }
-          if (newMap.resources[key].amount <= 0) {
-            addNotification(`${resourceOnCell.type} node depleted. Will respawn elsewhere.`, "info")
-            newMap.resources[key].cooldownUntil = Date.now() + CONFIG.RESOURCE_DEPLETED_COOLDOWN // existing node stays on cooldown
-          }
-        } else if (itemOnCell) {
-          // ... (item pickup logic from original)
-          const emptySlotIndex = updatedInventory.findIndex((slot) => slot === null)
-          if (emptySlotIndex !== -1) {
-            updatedInventory[emptySlotIndex] = itemOnCell
-            delete newMap.items[key]
-            setItemRespawnQueue((prevQueue) => ({
-              ...prevQueue,
-              [itemOnCell.id!]: { item: itemOnCell, respawnTime: Date.now() + CONFIG.ITEM_RESPAWN_COOLDOWN },
-            }))
-            addNotification(`Picked up ${itemOnCell.icon} ${itemOnCell.name}.`, "success")
-          } else {
-            addNotification("Inventory is full! Could not pick up item.", "warning")
-            // If inventory full, don't consume movement cost / don't move player.
-            if (isMoving) return prev // Revert move if it happened
+        }
+
+        // Territory capture attempt when entering another house's sector
+        if (
+          territoryOnCell &&
+          territoryOnCell.ownerId &&
+          territoryOnCell.ownerId !== player.id
+        ) {
+          const owner = onlinePlayers[territoryOnCell.ownerId]
+          if (owner) {
+            if (player.house && owner.house === player.house) {
+              addNotification("You cannot attack a member of your own house!", "warning")
+              return {
+                ...prev,
+                player: newPlayer,
+                resources: newResources,
+                map: newMap,
+                inventory: updatedInventory,
+                sandwormAttackTime,
+              }
+            }
+            const enemyOwner: Enemy = {
+              id: `owner_${owner.id}`,
+              type: "player",
+              name: owner.name,
+              icon: "👤",
+              health: owner.maxHealth,
+              currentHealth: owner.maxHealth,
+              attack: owner.attack,
+              defense: owner.defense,
+              xp: owner.level * 20,
+              loot: {},
+              level: owner.level,
+              position: { x: targetX, y: targetY },
+              description: "Territory Owner",
+            }
+            addNotification(
+              `You challenge ${owner.name} for control of this territory!`,
+              "info",
+            )
+            return {
+              ...prev,
+              player: { ...newPlayer, isDefending: false },
+              resources: newResources,
+              sandwormAttackTime,
+              isCombatModalOpen: true,
+              capturingTerritoryId: key,
+              combat: {
+                active: true,
+                enemy: enemyOwner,
+                turn: "player",
+                log: [
+                  `<p class="log-info">You challenged ${owner.name} for control of this territory!</p>`,
+                ],
+                playerHealthAtStart: newPlayer.health,
+                enemyHealthAtStart: enemyOwner.health,
+                combatRound: 1,
+              },
+            }
           }
         }
 
-        return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
+        return {
+          ...prev,
+          player: newPlayer,
+          resources: newResources,
+          map: newMap,
+          inventory: updatedInventory,
+          sandwormAttackTime,
+        }
       })
     },
-    [addNotification, itemRespawnQueue, handleCombatEnd], // Ensure all dependencies are correct
+    [addNotification, handleCombatEnd],
   )
 
   // WASD Controls: Ensure it checks new modal flags if any are added for pausing. Fine for now.
@@ -1714,7 +2072,8 @@ export default function ArrakisGamePage() {
         gameStateRef.current.isNameModalOpen ||
         gameStateRef.current.isHouseModalOpen ||
         gameStateRef.current.isPrestigeModalOpen ||
-        gameStateRef.current.isAbilitySelectionModalOpen
+        gameStateRef.current.isAbilitySelectionModalOpen ||
+        gameStateRef.current.isPaused
       )
         return
       if (document.activeElement && ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
@@ -1806,7 +2165,10 @@ export default function ArrakisGamePage() {
           ...territory,
           ownerId: newPlayer.id,
           ownerName: newPlayer.name,
-          ownerColor: newPlayer.color,
+          ownerColor:
+            HOUSE_COLORS[newPlayer.house as keyof typeof HOUSE_COLORS] ||
+            newPlayer.color,
+          captureLevel: 0,
         }
         newMap.territories[territoryId] = updatedTerritory
         newPlayer.territories = [...newPlayer.territories, updatedTerritory] // Add to player's owned territories
@@ -1825,6 +2187,92 @@ export default function ArrakisGamePage() {
     },
     [addNotification],
   )
+
+  const handlePurchaseRandomTerritory = useCallback(() => {
+    setGameState((prev) => {
+      const newResources = { ...prev.resources }
+      const newPlayer = { ...prev.player }
+      const newMap = { ...prev.map, territories: { ...prev.map.territories } }
+
+      const territoryKeys = Object.keys(newMap.territories)
+      if (territoryKeys.length === 0) return prev
+
+      const randomKey = territoryKeys[Math.floor(Math.random() * territoryKeys.length)]
+      const territory = newMap.territories[randomKey]
+      if (!territory) return prev
+
+      const baseCost = CONFIG.RANDOM_TERRITORY_PURCHASE_COST
+      const finalCost = territory.ownerId ? baseCost * CONFIG.OWNED_TERRITORY_COST_MULTIPLIER : baseCost
+
+      if (newResources.solari < finalCost) {
+        addNotification(`Need ${finalCost.toLocaleString()} Solari to buy this territory!`, "warning")
+        return prev
+      }
+
+      newResources.solari -= finalCost
+      const updatedTerritory = {
+        ...territory,
+        ownerId: newPlayer.id,
+        ownerName: newPlayer.name,
+        ownerColor: newPlayer.color,
+        captureLevel: 0,
+      }
+      newMap.territories[randomKey] = updatedTerritory
+      const alreadyOwned = newPlayer.territories.find(
+        (t) => t.position.x === updatedTerritory.position.x && t.position.y === updatedTerritory.position.y,
+      )
+      if (!alreadyOwned) newPlayer.territories = [...newPlayer.territories, updatedTerritory]
+      else {
+        newPlayer.territories = newPlayer.territories.map((t) =>
+          t.position.x === updatedTerritory.position.x && t.position.y === updatedTerritory.position.y
+            ? updatedTerritory
+            : t,
+        )
+      }
+
+      addNotification(`Purchased ${territory.name || randomKey} for ${finalCost.toLocaleString()} Solari!`, "success")
+
+      return { ...prev, resources: newResources, player: newPlayer, map: newMap }
+    })
+  }, [addNotification])
+
+  const handleLaunchSeeker = useCallback(() => {
+    setGameState((prev) => {
+      const now = Date.now()
+      if (now - (prev.lastSeekerLaunchTime || 0) < CONFIG.SEEKER_COOLDOWN) {
+        addNotification("Seeker launch cooling down!", "warning")
+        return prev
+      }
+
+      const newResources = { ...prev.resources }
+      const newPlayer = { ...prev.player }
+      if (newResources.solari < CONFIG.SEEKER_COST) {
+        addNotification(`Need ${CONFIG.SEEKER_COST.toLocaleString()} Solari to launch a Seeker!`, "warning")
+        return prev
+      }
+
+      const newMap = { ...prev.map, seekers: { ...prev.map.seekers } }
+      newResources.solari -= CONFIG.SEEKER_COST
+      const { x, y } = getRandomMapCoords()
+      const key = `${x},${y}`
+      newMap.seekers[key] = {
+        id: `seeker_${now}`,
+        position: { x, y },
+        ownerId: newPlayer.id!,
+        ownerName: newPlayer.name,
+        ownerColor: newPlayer.color,
+        claimTime: now + CONFIG.SEEKER_COOLDOWN,
+      }
+
+      addNotification(`Seeker launched to ${key}!`, "success")
+      return {
+        ...prev,
+        resources: newResources,
+        map: newMap,
+        lastSeekerLaunchTime: now,
+      }
+    })
+  }, [addNotification])
 
   const handleEquipItem = useCallback(
     (item: Item, inventoryIndex: number) => {
@@ -1864,6 +2312,23 @@ export default function ArrakisGamePage() {
           equipment: newEquipment,
           inventory: newInventory,
         }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleSellItem = useCallback(
+    (item: Item, inventoryIndex: number) => {
+      setGameState((prev) => {
+        const newResources = { ...prev.resources }
+        const newInventory = [...prev.inventory]
+        const rarityScore =
+          RARITY_SCORES[item.rarity as keyof typeof RARITY_SCORES] || 1
+        const sellPrice = rarityScore * CONFIG.GEAR_SELL_BASE
+        newResources.solari += sellPrice
+        newInventory[inventoryIndex] = null
+        addNotification(`Sold ${item.name} for ${sellPrice} Solari.`, "success")
+        return { ...prev, resources: newResources, inventory: newInventory }
       })
     },
     [addNotification],
@@ -1963,8 +2428,14 @@ export default function ArrakisGamePage() {
   }, [addNotification])
 
   const handleOpenPrestigeModal = useCallback(() => {
-    setGameState((prev) => ({ ...prev, isPrestigeModalOpen: true }))
-  }, [])
+    setGameState((prev) => {
+      if (prev.player.level < 20) {
+        addNotification("Reach level 20 to Prestige!", "warning")
+        return prev
+      }
+      return { ...prev, isPrestigeModalOpen: true }
+    })
+  }, [addNotification])
 
   const handleClosePrestigeModal = useCallback(() => {
     setGameState((prev) => ({ ...prev, isPrestigeModalOpen: false }))
@@ -1989,7 +2460,13 @@ export default function ArrakisGamePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header player={gameState.player} />
+      <Header
+        player={gameState.player}
+        isPaused={gameState.isPaused}
+        onTogglePause={() =>
+          setGameState((prev) => ({ ...prev, isPaused: !prev.isPaused }))
+        }
+      />
       <Navigation currentTab={gameState.currentTab} onTabChange={handleTabChange} />
       <NotificationArea
         notifications={gameState.notifications}
@@ -2031,15 +2508,32 @@ export default function ArrakisGamePage() {
                   <span className="font-semibold text-amber-400">Controls:</span> WASD/Arrow Keys to move • Click cells
                   to interact/purchase territory.
                 </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-stone-300 text-sm">Zoom:</span>
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.1}
+                    value={[zoom]}
+                    onValueChange={(v) => setZoom(v[0])}
+                    className="w-40"
+                  />
+                </div>
                 <MapGrid // Ensure MapGrid can take onlinePlayers to show AI positions/territories
                   player={gameState.player}
                   mapData={gameState.map}
                   onlinePlayers={gameState.onlinePlayers} // Pass AI players
                   worldEvents={gameState.worldEvents} // Pass dynamic world events
                   onCellClick={handleMapCellClick}
+                  zoom={zoom}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
+                  <HousesPanel
+                    onlinePlayers={gameState.onlinePlayers}
+                    territories={gameState.map.territories}
+                    player={{ id: gameState.player.id, house: gameState.player.house }}
+                  />
                   {/* World Events Summary - uses gameState.worldEvents which is now dynamic */}
                   <div className="bg-purple-800 p-4 rounded-lg border border-purple-500">
                     <h3 className="text-lg font-semibold text-purple-300 mb-3 font-orbitron">
@@ -2084,19 +2578,22 @@ export default function ArrakisGamePage() {
               equipment={gameState.equipment}
               inventory={gameState.inventory}
               onEquipItem={handleEquipItem}
+              onSellItem={handleSellItem}
               onOpenPrestigeModal={handleOpenPrestigeModal}
               onActivateAbility={handleActivateAbility}
               abilityCooldowns={gameState.abilityCooldowns}
             />
           )}
           {gameState.currentTab === "empire" && (
-            <EmpireTab
-              player={gameState.player}
-              resources={gameState.resources}
-              onInvest={handleInvestInVenture}
-              onManualGather={handleManualGather}
-              onHireManager={handleHireManager}
-            />
+          <EmpireTab
+            player={gameState.player}
+            resources={gameState.resources}
+            onInvest={handleInvestInVenture}
+            onManualGather={handleManualGather}
+            onHireManager={handleHireManager}
+            onPurchaseRandomTerritory={handlePurchaseRandomTerritory}
+            onLaunchSeeker={handleLaunchSeeker}
+          />
           )}
           {gameState.currentTab === "multiplayer" && (
             <div className="flex-1 p-6 overflow-y-auto">
@@ -2114,8 +2611,12 @@ export default function ArrakisGamePage() {
                     playerColor={gameState.player.color}
                   />
                 </div>
-                {/* HousesPanel should now reflect actual AI players from gameState.onlinePlayers */}
-                <HousesPanel onlinePlayers={Object.values(gameState.onlinePlayers)} />
+                {/* HousesPanel now also tracks territory control */}
+                <HousesPanel
+                  onlinePlayers={gameState.onlinePlayers}
+                  territories={gameState.map.territories}
+                  player={{ id: gameState.player.id, house: gameState.player.house }}
+                />
                 {/* WorldEventsPanel should show dynamic events */}
                 <WorldEventsPanel worldEvents={gameState.worldEvents} />
                 <TradePanel player={gameState.player} resources={gameState.resources} />
@@ -2187,6 +2688,17 @@ export default function ArrakisGamePage() {
         onClose={handleCloseAbilitySelectionModal} // Add a close handler
         onSelect={handleSelectAbility}
         availableAbilities={availableAbilitiesForSelection}
+      />
+      <PauseModal
+        isOpen={gameState.isPaused}
+        onResume={() => setGameState((prev) => ({ ...prev, isPaused: false }))}
+      />
+      <SandwormWarning
+        timeLeft={
+          gameState.sandwormAttackTime
+            ? gameState.sandwormAttackTime - Date.now()
+            : 0
+        }
       />
     </div>
   )

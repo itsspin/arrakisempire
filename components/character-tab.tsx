@@ -8,6 +8,7 @@ interface CharacterTabProps {
   equipment: Equipment
   inventory: (Item | null)[]
   onEquipItem: (item: Item, inventoryIndex: number) => void
+  onSellItem: (item: Item, inventoryIndex: number) => void
   onOpenPrestigeModal: () => void // New prop
   onActivateAbility: (ability: Ability) => void // New prop
   abilityCooldowns: Record<string, number> // New prop
@@ -18,6 +19,7 @@ export function CharacterTab({
   equipment,
   inventory,
   onEquipItem,
+  onSellItem,
   onOpenPrestigeModal,
   onActivateAbility,
   abilityCooldowns,
@@ -37,6 +39,14 @@ export function CharacterTab({
     { label: "XP Gain Bonus", value: `${totalXPGainBonus.toFixed(1)}%`, color: "text-purple-400" },
   ]
 
+  const getItemTooltip = (item: Item) => {
+    const lines = [item.name, item.description]
+    if (item.attack) lines.push(`Attack: +${item.attack}`)
+    if (item.defense) lines.push(`Defense: +${item.defense}`)
+    if (item.special) lines.push(`Special: ${item.special}`)
+    return lines.join("\n")
+  }
+
   const getCooldownRemaining = (abilityId: string) => {
     const cooldownEnd = abilityCooldowns[abilityId]
     if (!cooldownEnd) return 0
@@ -52,14 +62,20 @@ export function CharacterTab({
         <div className="bg-stone-800 p-6 rounded-lg border border-stone-600">
           <h3 className="text-xl font-semibold mb-4 text-amber-300">Equipment</h3>
           <div className="grid grid-cols-3 gap-4 text-center mb-6">
-            {(Object.keys(equipment) as Array<keyof Equipment>).map((slot) => (
-              <div key={slot}>
-                <div title={equipment[slot]?.name || "Empty"} className="inventory-slot mx-auto mb-2 w-16 h-16">
-                  {equipment[slot]?.icon || ""}
+            {(Object.keys(equipment) as Array<keyof Equipment>).map((slot) => {
+              const eqItem = equipment[slot]
+              return (
+                <div key={slot}>
+                  <div
+                    title={eqItem ? getItemTooltip(eqItem) : "Empty"}
+                    className="inventory-slot mx-auto mb-2 w-16 h-16"
+                  >
+                    {eqItem?.icon || ""}
+                  </div>
+                  <span className="text-sm font-semibold capitalize">{slot}</span>
                 </div>
-                <span className="text-sm font-semibold capitalize">{slot}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <h3 className="text-xl font-semibold mb-4 text-amber-300">
@@ -69,15 +85,20 @@ export function CharacterTab({
             {inventory.map((item, index) => (
               <div
                 key={index}
-                title={item ? `${item.name}\n${item.description}` : "Empty Slot"}
+                title={item ? getItemTooltip(item) : "Empty Slot"}
                 className={`inventory-slot ${item ? "cursor-pointer hover:border-amber-500" : "opacity-50"}`}
                 onClick={() => item && onEquipItem(item, index)}
+                onContextMenu={(e) => {
+                  if (!item) return
+                  e.preventDefault()
+                  onSellItem(item, index)
+                }}
               >
                 {item?.icon || ""}
               </div>
             ))}
           </div>
-          <p className="text-xs text-stone-400 mt-3">Click an item in inventory to equip it.</p>
+          <p className="text-xs text-stone-400 mt-3">Click an item to equip. Right-click to sell.</p>
         </div>
 
         {/* Character Statistics & Abilities */}
@@ -134,10 +155,17 @@ export function CharacterTab({
               Reach new heights of power by prestiging! Reset your progress for a significant bonus to future gains.
             </p>
             <button
-              onClick={onOpenPrestigeModal}
-              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-md transition duration-150 ease-in-out"
+              onClick={player.level >= 20 ? onOpenPrestigeModal : undefined}
+              disabled={player.level < 20}
+              className={`w-full py-2 px-4 font-semibold rounded-md transition duration-150 ease-in-out ${
+                player.level >= 20
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : "bg-stone-500 text-white cursor-not-allowed"
+              }`}
             >
-              Ascend to Prestige {player.prestigeLevel + 1}
+              {player.level >= 20
+                ? `Ascend to Prestige ${player.prestigeLevel + 1}`
+                : "Reach Level 20 to Prestige"}
             </button>
           </div>
         </div>

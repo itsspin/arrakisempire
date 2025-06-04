@@ -64,7 +64,7 @@ body {
 
 .map-grid {
   --map-columns: 15;
-  --cell-size: 32px;
+  --cell-size: 36px;
   display: grid;
   grid-template-columns: repeat(var(--map-columns), var(--cell-size));
   gap: 1px;
@@ -74,7 +74,8 @@ body {
   padding: 8px;
   margin: 0 auto;
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-  width: max-content;
+  width: calc(var(--cell-size) * var(--map-columns));
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -82,6 +83,7 @@ body {
   .map-grid {
     --map-columns: 10;
     --cell-size: 28px;
+    width: calc(var(--cell-size) * var(--map-columns));
   }
 }
 
@@ -91,7 +93,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: calc(var(--cell-size) * 0.45);
   font-weight: bold;
   border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 4px;
@@ -134,10 +136,35 @@ body {
   border: 2px solid currentColor !important;
 }
 
+.player-name-label {
+  position: absolute;
+  top: -0.8em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--cell-size) * 0.25);
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 2px #000;
+  pointer-events: none;
+}
+
+.seeker-countdown {
+  position: absolute;
+  top: -0.8em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: calc(var(--cell-size) * 0.25);
+  line-height: 1;
+  white-space: nowrap;
+  color: #f87171;
+  text-shadow: 0 0 2px #000;
+  pointer-events: none;
+}
+
 .map-cell-enemy {
   background: linear-gradient(135deg, #ef4444, #dc2626) !important;
   color: white !important;
-  box-shadow: 0 0 8px #ef4444; /* Added distinct shadow */
+  /* Removed glow for regular enemies */
 }
 
 .map-cell-boss {
@@ -192,6 +219,11 @@ body {
   color: white !important;
   animation: world-event-pulse 2s infinite;
   filter: brightness(1.1); /* Enhanced brightness */
+}
+
+.map-cell-seeker {
+  background: linear-gradient(135deg, #b91c1c, #991b1b) !important;
+  color: white !important;
 }
 
 .map-cell-desert {

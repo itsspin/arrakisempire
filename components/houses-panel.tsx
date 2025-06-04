@@ -1,13 +1,15 @@
 "use client"
 
 import { STATIC_DATA } from "@/lib/game-data"
-import type { GameState } from "@/types/game"
+import type { GameState, TerritoryDetails, Player } from "@/types/game"
 
 interface HousesPanelProps {
   onlinePlayers: GameState["onlinePlayers"]
+  territories?: Record<string, TerritoryDetails>
+  player: Pick<Player, "id" | "house">
 }
 
-export function HousesPanel({ onlinePlayers }: HousesPanelProps) {
+export function HousesPanel({ onlinePlayers, territories = {}, player }: HousesPanelProps) {
   // Calculate player distribution per house
   const houseCounts: Record<string, number> = {}
   let totalPlayersWithHouse = 0
@@ -17,6 +19,31 @@ export function HousesPanel({ onlinePlayers }: HousesPanelProps) {
       totalPlayersWithHouse++
     }
   })
+
+  // Calculate territory control per house
+  const territoryCounts: Record<string, number> = {
+    atreides: 0,
+    harkonnen: 0,
+    fremen: 0,
+    unclaimed: 0,
+  }
+
+  Object.values(territories).forEach((territory) => {
+    if (territory.ownerId) {
+      if (territory.ownerId === player.id && player.house) {
+        territoryCounts[player.house] = (territoryCounts[player.house] || 0) + 1
+      } else if (onlinePlayers[territory.ownerId] && onlinePlayers[territory.ownerId].house) {
+        const houseKey = onlinePlayers[territory.ownerId].house!
+        territoryCounts[houseKey] = (territoryCounts[houseKey] || 0) + 1
+      } else {
+        territoryCounts.unclaimed++
+      }
+    } else {
+      territoryCounts.unclaimed++
+    }
+  })
+
+  const totalTerritories = Object.keys(territories).length
 
   return (
     <div className="bg-stone-800 p-6 rounded-lg border border-stone-600">
@@ -28,6 +55,8 @@ export function HousesPanel({ onlinePlayers }: HousesPanelProps) {
         {Object.entries(STATIC_DATA.HOUSES).map(([key, house]) => {
           const playerCount = houseCounts[key] || 0
           const percentage = totalPlayersWithHouse > 0 ? (playerCount / totalPlayersWithHouse) * 100 : 0
+          const territoryCount = territoryCounts[key] || 0
+          const territoryPercent = totalTerritories > 0 ? (territoryCount / totalTerritories) * 100 : 0
           return (
             <div
               key={key}
@@ -52,6 +81,10 @@ export function HousesPanel({ onlinePlayers }: HousesPanelProps) {
               <p className="text-sm text-stone-300 font-semibold">
                 Players: <span className="font-bold">{playerCount}</span> (
                 <span className="font-bold text-yellow-300">{percentage.toFixed(1)}%</span>)
+              </p>
+              <p className="text-sm text-stone-300 font-semibold">
+                Control: <span className="font-bold">{territoryCount}</span> (
+                <span className="font-bold text-yellow-300">{territoryPercent.toFixed(1)}%</span>)
               </p>
             </div>
           )

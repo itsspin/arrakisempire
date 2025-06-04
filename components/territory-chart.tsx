@@ -7,7 +7,7 @@ import type { TerritoryDetails, GameState } from "@/types/game"
 import { STATIC_DATA } from "@/lib/game-data"
 
 interface TerritoryChartProps {
-  territories: Record<string, TerritoryDetails>
+  territories?: Record<string, TerritoryDetails>
   onlinePlayers: GameState["onlinePlayers"]
 }
 
@@ -18,7 +18,7 @@ const COLORS = {
   unclaimed: "#6b7280", // gray-500
 }
 
-export function TerritoryChart({ territories, onlinePlayers }: TerritoryChartProps) {
+export function TerritoryChart({ territories = {}, onlinePlayers }: TerritoryChartProps) {
   const territoryData: { name: string; value: number; color: string }[] = []
   const houseTerritoryCounts: Record<string, number> = {
     atreides: 0,
