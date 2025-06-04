@@ -19,7 +19,15 @@ interface CharacterTabProps {
   onOpenPrestigeModal: () => void // New prop
   onActivateAbility: (ability: Ability) => void // New prop
   abilityCooldowns: Record<string, number> // New prop
-  onCraftItem: (recipeId: "healingStim" | "battleStim") => void
+  onCraftItem: (
+    recipeId:
+      | "healingStim"
+      | "battleStim"
+      | "xpPotion"
+      | "healthPotion"
+      | "bandage"
+      | "attackPotion"
+  ) => void
 }
 
 export function CharacterTab({
@@ -183,7 +191,16 @@ export function CharacterTab({
           <div className="mt-6">
             <h3 className="text-xl font-semibold mb-4 text-amber-300">Crafting</h3>
             <div className="space-y-2 text-sm">
-              {(["healingStim", "battleStim"] as const).map((id) => {
+              {(
+                [
+                  "healingStim",
+                  "battleStim",
+                  "xpPotion",
+                  "healthPotion",
+                  "bandage",
+                  "attackPotion",
+                ] as const
+              ).map((id) => {
                 const recipe = CRAFTING_RECIPES[id]
                 const canCraft =
                   resources.plasteel >= recipe.plasteel &&
@@ -197,7 +214,19 @@ export function CharacterTab({
                     className="w-full py-2 px-3 rounded-md font-semibold bg-green-700 hover:bg-green-800 text-white disabled:bg-stone-500 disabled:cursor-not-allowed"
                     title={`Cost: ${recipe.plasteel} 🔧 ${recipe.rareMaterials} 💎 ${recipe.melange} 🔥`}
                   >
-                    Craft {id === "healingStim" ? "Healing Stim" : "Battle Stim"}
+                    Craft {
+                      id === "healingStim"
+                        ? "Healing Stim"
+                        : id === "battleStim"
+                          ? "Battle Stim"
+                          : id === "xpPotion"
+                            ? "XP Potion"
+                            : id === "healthPotion"
+                              ? "Health Potion"
+                              : id === "bandage"
+                                ? "Bandage"
+                                : "Attack Potion"
+                    }
                   </button>
                 )
               })}
