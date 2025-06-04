@@ -151,7 +151,7 @@ body {
 .map-cell-enemy {
   background: linear-gradient(135deg, #ef4444, #dc2626) !important;
   color: white !important;
-  box-shadow: 0 0 8px #ef4444; /* Added distinct shadow */
+  /* Removed glow for regular enemies */
 }
 
 .map-cell-boss {
