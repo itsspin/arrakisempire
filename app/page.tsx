@@ -1730,7 +1730,7 @@ export default function ArrakisGamePage() {
         const itemOnCell = map.items[key]
         const territoryOnCell = map.territories[key] // Get territory info
 
-        // Check for AI player on the target cell (player cannot move onto AI cell for now)
+        // Check for AI player on the target cell
         const aiPlayerOnCell = Object.values(onlinePlayers).find(
           (ai) => ai.position.x === targetX && ai.position.y === targetY,
         )
@@ -1741,9 +1741,41 @@ export default function ArrakisGamePage() {
           addNotification("You can only move to adjacent tiles!", "warning")
           return prev
         }
-        if (aiPlayerOnCell && (dx !== 0 || dy !== 0) /* if moving to it */) {
-          addNotification(`Cell occupied by ${aiPlayerOnCell.name}. Cannot move there.`, "warning")
-          return prev
+        if (aiPlayerOnCell && (dx !== 0 || dy !== 0)) {
+          if (player.house && aiPlayerOnCell.house === player.house) {
+            addNotification("You cannot attack a member of your own house!", "warning")
+            return prev
+          }
+          const enemyPlayer: Enemy = {
+            id: `player_${aiPlayerOnCell.id}`,
+            type: "player",
+            name: aiPlayerOnCell.name,
+            icon: "👤",
+            health: aiPlayerOnCell.maxHealth,
+            currentHealth: aiPlayerOnCell.maxHealth,
+            attack: aiPlayerOnCell.attack,
+            defense: aiPlayerOnCell.defense,
+            xp: aiPlayerOnCell.level * 20,
+            loot: {},
+            level: aiPlayerOnCell.level,
+            position: { x: targetX, y: targetY },
+            description: "Rival Player",
+          }
+          addNotification(`You engage ${aiPlayerOnCell.name} in combat!`, "info")
+          return {
+            ...prev,
+            player: { ...player, isDefending: false },
+            isCombatModalOpen: true,
+            combat: {
+              active: true,
+              enemy: enemyPlayer,
+              turn: "player",
+              log: [`<p class="log-info">You engage ${aiPlayerOnCell.name} in combat!</p>`],
+              playerHealthAtStart: player.health,
+              enemyHealthAtStart: enemyPlayer.health,
+              combatRound: 1,
+            },
+          }
         }
 
         // Check if territory is destroyed by sandworm (player cannot move or interact)
@@ -1877,6 +1909,10 @@ export default function ArrakisGamePage() {
         ) {
           const owner = onlinePlayers[territoryOnCell.ownerId]
           if (owner) {
+            if (player.house && owner.house === player.house) {
+              addNotification("You cannot attack a member of your own house!", "warning")
+              return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
+            }
             const enemyOwner: Enemy = {
               id: `owner_${owner.id}`,
               type: "player",
