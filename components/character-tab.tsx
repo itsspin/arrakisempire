@@ -2,6 +2,12 @@
 
 import type { Player, Equipment, Item, Ability, Resources } from "@/types/game"
 import { CONFIG, CRAFTING_RECIPES } from "@/lib/constants" // For MAX_INVENTORY and crafting costs
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip"
 
 interface CharacterTabProps {
   player: Player
@@ -67,43 +73,62 @@ export function CharacterTab({
         {/* Equipment and Inventory */}
         <div className="bg-stone-800 p-6 rounded-lg border border-stone-600">
           <h3 className="text-xl font-semibold mb-4 text-amber-300">Equipment</h3>
-          <div className="grid grid-cols-3 gap-4 text-center mb-6">
-            {(Object.keys(equipment) as Array<keyof Equipment>).map((slot) => {
-              const eqItem = equipment[slot]
-              return (
-                <div key={slot}>
-                  <div
-                    title={eqItem ? getItemTooltip(eqItem) : "Empty"}
-                    className={`inventory-slot mx-auto mb-2 w-16 h-16 ${eqItem ? `rarity-${eqItem.rarity}` : ""}`}
-                  >
-                    {eqItem?.icon || ""}
+          <TooltipProvider delayDuration={0}>
+            <div className="grid grid-cols-3 gap-4 text-center mb-6">
+              {(Object.keys(equipment) as Array<keyof Equipment>).map((slot) => {
+                const eqItem = equipment[slot]
+                return (
+                  <div key={slot}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`inventory-slot mx-auto mb-2 w-16 h-16 ${eqItem ? `rarity-${eqItem.rarity}` : ""}`}
+                        >
+                          {eqItem?.icon || ""}
+                        </div>
+                      </TooltipTrigger>
+                      {eqItem && (
+                        <TooltipContent>
+                          <div className="whitespace-pre-line">{getItemTooltip(eqItem)}</div>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                    <span className="text-sm font-semibold capitalize">{slot}</span>
                   </div>
-                  <span className="text-sm font-semibold capitalize">{slot}</span>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          </TooltipProvider>
 
           <h3 className="text-xl font-semibold mb-4 text-amber-300">
             Inventory ({inventory.filter((i) => i).length}/{CONFIG.MAX_INVENTORY})
           </h3>
-          <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
-            {inventory.map((item, index) => (
-              <div
-                key={index}
-                title={item ? getItemTooltip(item) : "Empty Slot"}
-                className={`inventory-slot ${item ? `rarity-${item.rarity} cursor-pointer hover:border-amber-500` : "opacity-50"}`}
-                onClick={() => item && onEquipItem(item, index)}
-                onContextMenu={(e) => {
-                  if (!item) return
-                  e.preventDefault()
-                  onSellItem(item, index)
-                }}
-              >
-                {item?.icon || ""}
-              </div>
-            ))}
-          </div>
+          <TooltipProvider delayDuration={0}>
+            <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
+              {inventory.map((item, index) => (
+                <Tooltip key={index}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={`inventory-slot ${item ? `rarity-${item.rarity} cursor-pointer hover:border-amber-500` : "opacity-50"}`}
+                      onClick={() => item && onEquipItem(item, index)}
+                      onContextMenu={(e) => {
+                        if (!item) return
+                        e.preventDefault()
+                        onSellItem(item, index)
+                      }}
+                    >
+                      {item?.icon || ""}
+                    </div>
+                  </TooltipTrigger>
+                  {item && (
+                    <TooltipContent>
+                      <div className="whitespace-pre-line">{getItemTooltip(item)}</div>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
           <p className="text-xs text-stone-400 mt-3">Click an item to equip. Right-click to sell.</p>
         </div>
 

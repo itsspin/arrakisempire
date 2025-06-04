@@ -11,6 +11,7 @@ interface ActionsPanelProps {
   onSellSpice: () => void
   onMinePlasteel: () => void
   onCollectWater: () => void
+  onBuildBase: () => void
 }
 
 export function ActionsPanel({
@@ -21,6 +22,7 @@ export function ActionsPanel({
   onSellSpice,
   onMinePlasteel,
   onCollectWater,
+  onBuildBase,
 }: ActionsPanelProps) {
   const canUpgradeSpiceClick = resources.solari >= player.spiceClickUpgradeCost
   const canSellSpice = resources.spice >= CONFIG.SPICE_SELL_COST
@@ -84,6 +86,14 @@ export function ActionsPanel({
         >
           Collect Water ({CONFIG.COLLECT_WATER_YIELD} 💧 / {CONFIG.COLLECT_WATER_ENERGY_COST} ⚡)
         </button>
+        {!player.baseBuilt && (
+          <button
+            onClick={onBuildBase}
+            className="action-button bg-indigo-600 hover:bg-indigo-700 text-sm px-3 py-2 min-w-[120px]"
+          >
+            Build Base
+          </button>
+        )}
       </div>
     </div>
   )

@@ -48,6 +48,8 @@ export const CONFIG = {
   SANDWORM_COUNTDOWN: 10000, // Countdown duration after warning
   SEEKER_COST: 5000,
   SEEKER_COOLDOWN: 60000,
+  TRACK_COST_PLASTEEL: 50,
+  BOUNTY_INCREMENT: 100,
 };
 
 export const PLAYER_COLORS = [
