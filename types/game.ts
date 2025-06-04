@@ -16,6 +16,7 @@ export interface Player {
   dodgeChance: number
   position: { x: number; y: number }
   basePosition: { x: number; y: number }
+  baseBuilt: boolean
   house: string | null
   rank: number
   rankName?: string
@@ -28,6 +29,7 @@ export interface Player {
   energyProductionRate: number
   created: number
   lastActive: number
+  bounty?: number
   investments?: Record<string, Investment>
   spicePerClick: number
   spiceClickUpgradeCost: number
@@ -67,6 +69,8 @@ export interface Item {
   description: string
   dropChance?: number
   special?: string | null
+  effectType?: "heal" | "attack_boost"
+  effectValue?: number
 }
 
 export interface MapElement {
@@ -176,7 +180,7 @@ export interface WorldEvent extends MapElement {
   duration?: number
   endTime?: number
   type?: "economy" | "hazard" | "diplomacy" | "political" // For categorization
-  // NEW: For event chaining (e.g. Wormsign -> ShaiHuludAttack)
+  // NEW: For event chaining (e.g. Wormsign -> InfantSandwormAttack)
   triggersNext?: string // Key of the next event to trigger
   isChainedEvent?: boolean // If this event was triggered by another
   // NEW: For Sandworm attack target
@@ -201,6 +205,7 @@ export interface TradeOffer {
   sellerColor: string
   item: Item
   price: number
+  resource: keyof Resources
 }
 
 export interface Ability {
@@ -258,7 +263,11 @@ export interface GameState {
   isPrestigeModalOpen: boolean
   isAbilitySelectionModalOpen: boolean
   selectedTerritoryCoords: { x: number; y: number } | null
-  notifications: Array<{ id: string; message: string; type: "success" | "error" | "warning" | "info" | "legendary" }>
+  notifications: Array<{
+    id: string
+    message: string
+    type: "success" | "error" | "warning" | "info" | "legendary" | "mythic"
+  }>
   chatMessages: ChatMessage[]
   abilityCooldowns: Record<string, number>
   // NEW: Track last time AI and World Events were processed
@@ -271,6 +280,8 @@ export interface GameState {
   // NEW: Timestamp when sandworm will attack if player stays idle
   sandwormAttackTime?: number | null
   lastSeekerLaunchTime?: number
+  bounties: Record<string, number>
+  trackingTargetId?: string | null
   quests: Quest[]
   completedQuests: Quest[]
 }
