@@ -1,8 +1,8 @@
-import type { PlayerColor } from "@/types/game"
+import type { PlayerColor } from "@/types/game";
 
 export const CONFIG = {
   MAP_SIZE: 200,
-  VIEW_RADIUS: 9,
+  VIEW_RADIUS: 15,
   MAX_INVENTORY: 40,
   ENERGY_REGEN_RATE: 3,
   ENERGY_REGEN_INTERVAL: 2000,
@@ -47,7 +47,7 @@ export const CONFIG = {
   SANDWORM_COUNTDOWN: 10000, // Countdown duration after warning
   SEEKER_COST: 5000,
   SEEKER_COOLDOWN: 60000,
-}
+};
 
 export const PLAYER_COLORS = [
   "red",
@@ -58,13 +58,13 @@ export const PLAYER_COLORS = [
   "pink",
   "yellow",
   "cyan",
-]
+];
 
 export const HOUSE_COLORS: Record<string, PlayerColor> = {
   atreides: "blue",
   harkonnen: "red",
   fremen: "green",
-}
+};
 
 export const DUNE_QUOTES = [
   "Fear is the mind-killer.",
@@ -77,7 +77,7 @@ export const DUNE_QUOTES = [
   "Without change, something sleeps inside us, and seldom awakens.",
   "The future remains uncertain and so it should, for it is the canvas upon which we paint our desires.",
   "Bless the Maker and His water. Bless the coming and going of Him.",
-]
+];
 
 export const RARITY_SCORES = {
   common: 1,
@@ -85,4 +85,4 @@ export const RARITY_SCORES = {
   rare: 3,
   epic: 4,
   legendary: 5,
-}
+};
