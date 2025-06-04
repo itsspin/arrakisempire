@@ -226,8 +226,9 @@ const getInitialResourcesState = (): Resources => ({
 
 const initialMapData = {
   enemies: generateMockEnemies(),
-  resources: generateMockResources(),
+  resources: {},
   territories: generateMockTerritories(),
+  items: {},
   items: generateMockItems(),
   seekers: {},
 }
@@ -405,7 +406,6 @@ const ENEMY_MOVEMENT_CONFIG = {
 export default function ArrakisGamePage() {
   const [gameState, setGameState] = useState<GameState>(initialGameState)
   const [isLoading, setIsLoading] = useState(true)
-  const [itemRespawnQueue, setItemRespawnQueue] = useState<Record<string, { item: Item; respawnTime: number }>>({})
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
   const [zoom, setZoom] = useState(1.2)
 
@@ -729,8 +729,7 @@ export default function ArrakisGamePage() {
         })
         const enemyKey = `${enemyInstance.position.x},${enemyInstance.position.y}`
         if (newMap.enemies[enemyKey]) {
-          // Check if enemy still exists before updating
-          newMap.enemies[enemyKey] = { ...enemyInstance, cooldownUntil: Date.now() + CONFIG.ENEMY_COOLDOWN }
+          delete newMap.enemies[enemyKey]
         }
         if (currentFullGameState.capturingTerritoryId) {
           const terrKey = currentFullGameState.capturingTerritoryId
@@ -1238,8 +1237,6 @@ export default function ArrakisGamePage() {
         const newMap = {
           ...prev.map,
           enemies: { ...prev.map.enemies },
-          resources: { ...prev.map.resources },
-          items: { ...prev.map.items },
           territories: { ...prev.map.territories }, // Ensure territories are mutable
         }
         const newAbilityCooldowns = { ...prev.abilityCooldowns }
@@ -1300,6 +1297,8 @@ export default function ArrakisGamePage() {
         })
 
         // --- 2. Cooldowns & Respawns (Enemies, Resources, Items - existing logic) ---
+
+        // Enemy cooldowns and item respawns removed for streamlined gameplay
         Object.entries(newMap.enemies).forEach(([key, enemy]) => {
           if (enemy.cooldownUntil && now >= enemy.cooldownUntil) {
             const originalEnemyData = STATIC_DATA.ENEMIES[enemy.type as keyof typeof STATIC_DATA.ENEMIES]
@@ -1606,7 +1605,7 @@ export default function ArrakisGamePage() {
           // Link to player activity or fixed interval
           Object.keys(newMap.enemies).forEach((key) => {
             const enemy = newMap.enemies[key]
-            if (enemy && !enemy.cooldownUntil && !enemy.boss && !enemy.isMoving) {
+            if (enemy && !enemy.boss && !enemy.isMoving) {
               // Non-boss, active enemies
               if (Math.random() < ENEMY_MOVEMENT_CONFIG.MOVEMENT_CHANCE) {
                 const { x: ex, y: ey } = enemy.position
@@ -1824,8 +1823,6 @@ export default function ArrakisGamePage() {
         const dy = targetY - player.position.y
         const key = `${targetX},${targetY}`
         const enemyOnCell = map.enemies[key]
-        const resourceOnCell = map.resources[key]
-        const itemOnCell = map.items[key]
         const territoryOnCell = map.territories[key] // Get territory info
 
         // Check for AI player on the target cell
@@ -1903,7 +1900,7 @@ export default function ArrakisGamePage() {
 
         const newPlayer = { ...player }
         const newResources = { ...resources }
-        const newMap = { ...map, enemies: { ...map.enemies }, resources: { ...map.resources }, items: { ...map.items } }
+        const newMap = { ...map, enemies: { ...map.enemies } }
         const updatedInventory = [...prev.inventory]
 
         if (isMoving) {
@@ -1912,7 +1909,7 @@ export default function ArrakisGamePage() {
         }
 
         // Interaction logic (enemy, resource, item) remains largely the same
-        if (enemyOnCell && !enemyOnCell.cooldownUntil) {
+        if (enemyOnCell) {
           // ... (combat initiation logic from original, ensure it uses scaledEnemy correctly)
           const originalEnemyData = STATIC_DATA.ENEMIES[enemyOnCell.type as keyof typeof STATIC_DATA.ENEMIES]
           let targetEnemyLevel = player.level
@@ -1963,39 +1960,6 @@ export default function ArrakisGamePage() {
               enemyHealthAtStart: scaledEnemy.health,
               combatRound: 1,
             },
-          }
-        } else if (resourceOnCell && !resourceOnCell.cooldownUntil) {
-          // ... (resource harvesting logic from original)
-          let amountHarvested = Math.min(resourceOnCell.amount, 10)
-          if (player.activeAbility?.id === "spiceTrance") {
-            // Simplified check
-            amountHarvested = Math.floor(amountHarvested * (1 + (player.activeAbility.effectValue || 100) / 100))
-          }
-          ;(newResources as any)[resourceOnCell.type] += amountHarvested
-          addNotification(`Harvested ${amountHarvested} ${resourceOnCell.type}.`, "success")
-          newMap.resources[key] = {
-            ...resourceOnCell,
-            amount: resourceOnCell.amount - amountHarvested,
-          }
-          if (newMap.resources[key].amount <= 0) {
-            addNotification(`${resourceOnCell.type} node depleted. Will respawn elsewhere.`, "info")
-            newMap.resources[key].cooldownUntil = Date.now() + CONFIG.RESOURCE_DEPLETED_COOLDOWN // existing node stays on cooldown
-          }
-        } else if (itemOnCell) {
-          // ... (item pickup logic from original)
-          const emptySlotIndex = updatedInventory.findIndex((slot) => slot === null)
-          if (emptySlotIndex !== -1) {
-            updatedInventory[emptySlotIndex] = itemOnCell
-            delete newMap.items[key]
-            setItemRespawnQueue((prevQueue) => ({
-              ...prevQueue,
-              [itemOnCell.id!]: { item: itemOnCell, respawnTime: Date.now() + CONFIG.ITEM_RESPAWN_COOLDOWN },
-            }))
-            addNotification(`Picked up ${itemOnCell.icon} ${itemOnCell.name}.`, "success")
-          } else {
-            addNotification("Inventory is full! Could not pick up item.", "warning")
-            // If inventory full, don't consume movement cost / don't move player.
-            if (isMoving) return prev // Revert move if it happened
           }
         }
 
@@ -2054,7 +2018,7 @@ export default function ArrakisGamePage() {
         return { ...prev, player: newPlayer, resources: newResources, map: newMap, inventory: updatedInventory }
       })
     },
-    [addNotification, itemRespawnQueue, handleCombatEnd], // Ensure all dependencies are correct
+    [addNotification, handleCombatEnd],
   )
 
   // WASD Controls: Ensure it checks new modal flags if any are added for pausing. Fine for now.

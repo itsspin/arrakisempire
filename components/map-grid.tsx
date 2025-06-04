@@ -67,13 +67,6 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         if (territory.ownerId) hasBackground = true
       }
 
-      // Items (New)
-      const itemOnCell = mapData.items[key]
-      if (itemOnCell && cellContent === "") {
-        cellClass += " map-cell-item"
-        cellContent = itemOnCell.icon
-        cellTitle = `${itemOnCell.name} (${itemOnCell.rarity})`
-      }
 
       // Enemies
       const enemy = mapData.enemies[key]
@@ -84,15 +77,6 @@ export function MapGrid({ player, mapData, onlinePlayers, worldEvents, onCellCli
         hasBackground = true
       }
 
-      // Resources
-      const resource = mapData.resources[key]
-      if (resource && cellContent === "") {
-        cellClass += ` map-cell-resource-${resource.type}`
-        const icons = { spice: "✨", water: "💧", plasteel: "🔧", rareMaterials: "💎" }
-        cellContent = icons[resource.type] || "📦"
-        cellTitle = `${resource.type.charAt(0).toUpperCase() + resource.type.slice(1)} (${resource.amount})`
-        hasBackground = true
-      }
 
       // Seekers
       const seeker = mapData.seekers[key]
