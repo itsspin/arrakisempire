@@ -178,7 +178,7 @@ export interface WorldEvent extends MapElement {
   duration?: number
   endTime?: number
   type?: "economy" | "hazard" | "diplomacy" | "political" // For categorization
-  // NEW: For event chaining (e.g. Wormsign -> ShaiHuludAttack)
+  // NEW: For event chaining (e.g. Wormsign -> InfantSandwormAttack)
   triggersNext?: string // Key of the next event to trigger
   isChainedEvent?: boolean // If this event was triggered by another
   // NEW: For Sandworm attack target
