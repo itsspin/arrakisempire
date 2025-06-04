@@ -144,7 +144,9 @@ body {
   font-size: calc(var(--cell-size) * 0.25);
   line-height: 1;
   white-space: nowrap;
-  text-shadow: 0 0 2px #000;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 0 4px #000;
   pointer-events: none;
 }
 
