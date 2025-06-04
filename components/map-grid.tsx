@@ -214,6 +214,20 @@ export function MapGrid({
           className={cellClass}
           title={cellTitle}
           onClick={() => onCellClick(x, y)}
+          onPointerDown={(e) => {
+            ;(e.target as HTMLElement).setAttribute('data-pointer-start', `${e.clientX},${e.clientY}`)
+          }}
+          onPointerUp={(e) => {
+            const start = (e.target as HTMLElement).getAttribute('data-pointer-start')
+            if (start) {
+              const [sx, sy] = start.split(',').map(Number)
+              const dx = e.clientX - sx
+              const dy = e.clientY - sy
+              if (Math.hypot(dx, dy) < 10) {
+                onCellClick(x, y)
+              }
+            }
+          }}
           style={
             territory && territory.ownerId
               ? {
