@@ -260,9 +260,13 @@ body {
   position: absolute;
   top: 4px;
   right: 4px;
-  font-size: 1.5rem;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #facc15;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
   animation: bounce 1s infinite;
   pointer-events: none;
+  z-index: 10;
 }
 
 @keyframes bounce {
