@@ -460,6 +460,12 @@ export default function ArrakisGamePage() {
   const [seekerLaunchVisualTime, setSeekerLaunchVisualTime] = useState(0)
   const isMobile = useIsMobile()
 
+  useEffect(() => {
+    if (isMobile) {
+      setZoom(0.6)
+    }
+  }, [isMobile])
+
   // All hooks must be declared unconditionally at the top level
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
