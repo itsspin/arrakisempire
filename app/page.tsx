@@ -2649,7 +2649,7 @@ export default function ArrakisGamePage() {
   }, [])
 
   const handleCreateTradeOffer = useCallback(
-    (inventoryIndex: number, price: number) => {
+    (inventoryIndex: number, resource: keyof Resources, price: number) => {
       setGameState((prev) => {
         const item = prev.inventory[inventoryIndex]
         if (!item) return prev
@@ -2662,9 +2662,17 @@ export default function ArrakisGamePage() {
           sellerColor: prev.player.color,
           item,
           price,
+          resource,
         } as TradeOffer
-        addNotification(`Listed ${item.name} for ${price} Solari.`, "success")
-        return { ...prev, inventory: newInventory, tradeOffers: [...prev.tradeOffers, offer] }
+        addNotification(
+          `Listed ${item.name} for ${price} ${resource}.`,
+          "success",
+        )
+        return {
+          ...prev,
+          inventory: newInventory,
+          tradeOffers: [...prev.tradeOffers, offer],
+        }
       })
     },
     [addNotification],
@@ -2676,8 +2684,8 @@ export default function ArrakisGamePage() {
         const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
         if (index === -1) return prev
         const offer = prev.tradeOffers[index]
-        if (offer.price > prev.resources.solari) {
-          addNotification("Not enough Solari to purchase!", "warning")
+        if (offer.price > prev.resources[offer.resource]) {
+          addNotification(`Not enough ${offer.resource} to purchase!`, "warning")
           return prev
         }
         const newInventory = [...prev.inventory]
@@ -2687,11 +2695,55 @@ export default function ArrakisGamePage() {
           return prev
         }
         newInventory[empty] = offer.item
-        const newResources = { ...prev.resources, solari: prev.resources.solari - offer.price }
+        const newResources = {
+          ...prev.resources,
+          [offer.resource]:
+            prev.resources[offer.resource] - offer.price,
+        }
         const newOffers = [...prev.tradeOffers]
         newOffers.splice(index, 1)
         addNotification(`Purchased ${offer.item.name}!`, "success")
         return { ...prev, inventory: newInventory, resources: newResources, tradeOffers: newOffers }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleEditTradeOffer = useCallback(
+    (offerId: string, resource: keyof Resources, price: number) => {
+      setGameState((prev) => {
+        const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
+        if (index === -1) return prev
+        const offer = prev.tradeOffers[index]
+        if (offer.sellerId !== prev.player.id) return prev
+        const newOffers = [...prev.tradeOffers]
+        newOffers[index] = { ...offer, price, resource }
+        addNotification(`Updated offer for ${offer.item.name}.`, "success")
+        return { ...prev, tradeOffers: newOffers }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleRemoveTradeOffer = useCallback(
+    (offerId: string) => {
+      setGameState((prev) => {
+        const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
+        if (index === -1) return prev
+        const offer = prev.tradeOffers[index]
+        if (offer.sellerId !== prev.player.id) return prev
+        const newOffers = [...prev.tradeOffers]
+        newOffers.splice(index, 1)
+        const newInventory = [...prev.inventory]
+        const empty = newInventory.findIndex((i) => i === null)
+        if (empty !== -1) {
+          newInventory[empty] = offer.item
+        } else {
+          addNotification("Inventory full!", "warning")
+          return { ...prev, tradeOffers: newOffers }
+        }
+        addNotification("Offer removed from market.", "success")
+        return { ...prev, tradeOffers: newOffers, inventory: newInventory }
       })
     },
     [addNotification],
@@ -2954,10 +3006,12 @@ export default function ArrakisGamePage() {
         tradeOffers={gameState.tradeOffers}
         inventory={gameState.inventory}
         playerId={gameState.player.id}
-        playerSolari={gameState.resources.solari}
+        playerResources={gameState.resources}
         onClose={handleCloseTradingModal}
         onCreateOffer={handleCreateTradeOffer}
         onBuyOffer={handleBuyTradeOffer}
+        onEditOffer={handleEditTradeOffer}
+        onRemoveOffer={handleRemoveTradeOffer}
       />
       <PauseModal
         isOpen={gameState.isPaused}

@@ -1,17 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import type { TradeOffer, Item } from "@/types/game"
+import type { TradeOffer, Item, Resources } from "@/types/game"
 
 interface TradingModalProps {
   isOpen: boolean
   tradeOffers: TradeOffer[]
   inventory: (Item | null)[]
   playerId: string | null
-  playerSolari: number
+  playerResources: Resources
   onClose: () => void
-  onCreateOffer: (inventoryIndex: number, price: number) => void
+  onCreateOffer: (
+    inventoryIndex: number,
+    resource: keyof Resources,
+    price: number,
+  ) => void
   onBuyOffer: (offerId: string) => void
+  onEditOffer: (
+    offerId: string,
+    resource: keyof Resources,
+    price: number,
+  ) => void
+  onRemoveOffer: (offerId: string) => void
 }
 
 export function TradingModal({
@@ -19,13 +29,20 @@ export function TradingModal({
   tradeOffers,
   inventory,
   playerId,
-  playerSolari,
+  playerResources,
   onClose,
   onCreateOffer,
   onBuyOffer,
+  onEditOffer,
+  onRemoveOffer,
 }: TradingModalProps) {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [price, setPrice] = useState(0)
+  const [resource, setResource] = useState<keyof Resources>("solari")
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editPrice, setEditPrice] = useState(0)
+  const [editResource, setEditResource] = useState<keyof Resources>("solari")
 
   if (!isOpen) return null
 
@@ -63,20 +80,35 @@ export function TradingModal({
                     ) : null,
                   )}
                 </select>
-                <input
-                  type="number"
-                  min={1}
-                  className="w-full px-3 py-2 bg-stone-700 border border-stone-600 rounded-md text-stone-200"
-                  placeholder="Price in Solari"
-                  value={price}
-                  onChange={(e) => setPrice(parseInt(e.target.value))}
-                />
+                <div className="flex gap-2">
+                  <select
+                    className="w-1/2 px-3 py-2 bg-stone-700 border border-stone-600 rounded-md text-stone-200"
+                    value={resource}
+                    onChange={(e) => setResource(e.target.value as keyof Resources)}
+                  >
+                    <option value="spice">Spice</option>
+                    <option value="water">Water</option>
+                    <option value="solari">Solari</option>
+                    <option value="plasteel">Plasteel</option>
+                    <option value="rareMaterials">Rare Materials</option>
+                    <option value="melange">Melange</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    className="w-1/2 px-3 py-2 bg-stone-700 border border-stone-600 rounded-md text-stone-200"
+                    placeholder="Price"
+                    value={price}
+                    onChange={(e) => setPrice(parseInt(e.target.value))}
+                  />
+                </div>
                 <button
                   onClick={() => {
                     if (selectedIndex >= 0 && price > 0) {
-                      onCreateOffer(selectedIndex, price)
+                      onCreateOffer(selectedIndex, resource, price)
                       setSelectedIndex(-1)
                       setPrice(0)
+                      setResource("solari")
                     }
                   }}
                   disabled={selectedIndex < 0 || price <= 0}
@@ -100,18 +132,79 @@ export function TradingModal({
                   >
                     <div className="flex justify-between items-center">
                       <span>
-                        {offer.item.icon} {offer.item.name} - {offer.price} Solari
+                        {offer.item.icon} {offer.item.name} - {offer.price} {offer.resource}
                       </span>
                       <span className={`player-color-${offer.sellerColor}`}>{offer.sellerName}</span>
                     </div>
-                    {offer.sellerId !== playerId && (
+                    {offer.sellerId !== playerId ? (
                       <button
                         className="mt-2 w-full py-1 bg-amber-600 hover:bg-amber-700 text-sm rounded disabled:bg-stone-500"
                         onClick={() => onBuyOffer(offer.id)}
-                        disabled={playerSolari < offer.price}
+                        disabled={playerResources[offer.resource] < offer.price}
                       >
                         Buy
                       </button>
+                    ) : editingId === offer.id ? (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex gap-2">
+                          <select
+                            className="w-1/2 px-2 py-1 bg-stone-700 border border-stone-600 rounded-md text-sm"
+                            value={editResource}
+                            onChange={(e) => setEditResource(e.target.value as keyof Resources)}
+                          >
+                            <option value="spice">Spice</option>
+                            <option value="water">Water</option>
+                            <option value="solari">Solari</option>
+                            <option value="plasteel">Plasteel</option>
+                            <option value="rareMaterials">Rare Materials</option>
+                            <option value="melange">Melange</option>
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            className="w-1/2 px-2 py-1 bg-stone-700 border border-stone-600 rounded-md text-sm"
+                            value={editPrice}
+                            onChange={(e) => setEditPrice(parseInt(e.target.value))}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="flex-1 py-1 bg-green-600 hover:bg-green-700 rounded"
+                            onClick={() => {
+                              onEditOffer(offer.id, editResource, editPrice)
+                              setEditingId(null)
+                            }}
+                            disabled={editPrice <= 0}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="flex-1 py-1 bg-stone-600 hover:bg-stone-700 rounded"
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          className="flex-1 py-1 bg-blue-600 hover:bg-blue-700 text-sm rounded"
+                          onClick={() => {
+                            setEditingId(offer.id)
+                            setEditPrice(offer.price)
+                            setEditResource(offer.resource)
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="flex-1 py-1 bg-red-600 hover:bg-red-700 text-sm rounded"
+                          onClick={() => onRemoveOffer(offer.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </li>
                 ))}

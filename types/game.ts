@@ -203,6 +203,7 @@ export interface TradeOffer {
   sellerColor: string
   item: Item
   price: number
+  resource: keyof Resources
 }
 
 export interface Ability {
