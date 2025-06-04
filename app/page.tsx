@@ -53,14 +53,7 @@ import type {
 import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS, CRAFTING_RECIPES } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
 import { auth, db } from "@/lib/firebase"
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  onSnapshot,
-} from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, setDoc, onSnapshot } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { LoginForm } from "@/components/login-form"
 
@@ -514,11 +507,7 @@ export default function ArrakisGamePage() {
     }))
   }, [])
 
-  const applyQuestProgress = (
-    state: GameState,
-    type: Quest["type"],
-    amount = 1,
-  ): GameState => {
+  const applyQuestProgress = (state: GameState, type: Quest["type"], amount = 1): GameState => {
     let quests = state.quests.map((q) => {
       if (!q.completed && q.type === type) {
         const progress = q.progress + amount
@@ -726,10 +715,7 @@ export default function ArrakisGamePage() {
       setGameState((prev) => {
         const newBounty = data.player?.bounty || 0
         if (newBounty > prev.player.bounty) {
-          addNotification(
-            `A bounty has been placed on you! Current bounty: ${newBounty} Solari`,
-            "warning",
-          )
+          addNotification(`A bounty has been placed on you! Current bounty: ${newBounty} Solari`, "warning")
         }
         if (newBounty !== prev.player.bounty) {
           return { ...prev, player: { ...prev.player, bounty: newBounty } }
@@ -2483,8 +2469,7 @@ export default function ArrakisGamePage() {
       return { ...prev, resources: newResources, player: newPlayer, map: newMap }
     })
     updateQuestProgress("territory")
-  }, [addNotification])
-  }, [addNotification, updateQuestProgress]) // Added updateQuestProgress to dependencies
+  }, [addNotification, updateQuestProgress])
 
   const handleLaunchSeeker = useCallback(() => {
     setGameState((prev) => {
@@ -2497,10 +2482,7 @@ export default function ArrakisGamePage() {
       const newResources = { ...prev.resources }
       const newPlayer = { ...prev.player }
       if (newPlayer.level < CONFIG.SEEKER_LEVEL_REQUIRED) {
-        addNotification(
-          `Reach level ${CONFIG.SEEKER_LEVEL_REQUIRED} to launch a Seeker!`,
-          "warning",
-        )
+        addNotification(`Reach level ${CONFIG.SEEKER_LEVEL_REQUIRED} to launch a Seeker!`, "warning")
         return prev
       }
       if (newResources.solari < CONFIG.SEEKER_COST) {
