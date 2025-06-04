@@ -34,6 +34,8 @@ export interface Player {
   unlockedAbilities: Ability[]
   activeAbility: Ability | null
   isDefending: boolean
+  xpBuffMultiplier?: number
+  xpBuffExpires?: number | null
   // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
   // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
   equipment?: Equipment // Added for AI ranking
@@ -194,6 +196,15 @@ export interface ChatMessage {
   message: string
 }
 
+export interface TradeOffer {
+  id: string
+  sellerId: string | null
+  sellerName: string
+  sellerColor: string
+  item: Item
+  price: number
+}
+
 export interface Ability {
   id: string
   name: string
@@ -204,6 +215,15 @@ export interface Ability {
   duration: number
   effectType: "attack_boost" | "defense_boost" | "crit_boost" | "dodge_boost" | "health_regen" | "energy_regen" | "stun"
   effectValue: number
+}
+
+export interface Quest {
+  id: string
+  description: string
+  type: "kill" | "territory" | "move"
+  goal: number
+  progress: number
+  completed: boolean
 }
 
 // Modified onlinePlayers to include full Player type and their own Resources
@@ -223,7 +243,7 @@ export interface GameState {
   // onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>> // Old
   onlinePlayers: Record<string, AIPlayer> // NEW: AIs have their own full Player state and Resources
   worldEvents: WorldEvent[]
-  tradeOffers: any[]
+  tradeOffers: TradeOffer[]
   map: {
     enemies: Record<string, Enemy>
     resources: Record<string, ResourceNode>
@@ -253,6 +273,8 @@ export interface GameState {
   // NEW: Timestamp when sandworm will attack if player stays idle
   sandwormAttackTime?: number | null
   lastSeekerLaunchTime?: number
+  quests: Quest[]
+  completedQuests: Quest[]
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"
