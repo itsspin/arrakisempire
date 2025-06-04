@@ -68,7 +68,7 @@ export function CharacterTab({
                 <div key={slot}>
                   <div
                     title={eqItem ? getItemTooltip(eqItem) : "Empty"}
-                    className="inventory-slot mx-auto mb-2 w-16 h-16"
+                    className={`inventory-slot mx-auto mb-2 w-16 h-16 ${eqItem ? `rarity-${eqItem.rarity}` : ""}`}
                   >
                     {eqItem?.icon || ""}
                   </div>
@@ -86,7 +86,7 @@ export function CharacterTab({
               <div
                 key={index}
                 title={item ? getItemTooltip(item) : "Empty Slot"}
-                className={`inventory-slot ${item ? "cursor-pointer hover:border-amber-500" : "opacity-50"}`}
+                className={`inventory-slot ${item ? `rarity-${item.rarity} cursor-pointer hover:border-amber-500` : "opacity-50"}`}
                 onClick={() => item && onEquipItem(item, index)}
                 onContextMenu={(e) => {
                   if (!item) return

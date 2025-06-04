@@ -557,6 +557,23 @@ body {
   transform: scale(1.05);
 }
 
+.rarity-common {
+  border-color: #9ca3af;
+}
+.rarity-uncommon {
+  border-color: #34d399;
+}
+.rarity-rare {
+  border-color: #3b82f6;
+}
+.rarity-epic {
+  border-color: #8b5cf6;
+}
+.rarity-legendary {
+  border-color: #f59e0b;
+  animation: shimmer 1.5s infinite;
+}
+
 .action-button {
   @apply px-4 py-2 rounded font-semibold transition-colors duration-150;
   @apply bg-amber-600 hover:bg-amber-700 text-white;

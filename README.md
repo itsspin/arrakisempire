@@ -58,6 +58,7 @@ Recent additions to **Arrakis Spice Empire** include:
 - Houses claim surrounding sectors when enemies are defeated.
 - Ability to sell unused gear for Solari.
 - Enlarged map view for easier territory control on mobile and desktop.
+- Expanded equipment pool with new items ranging from common to legendary rarity.
 
 - Empire builder expanded with new ventures and a button to buy random territory.
 =======
