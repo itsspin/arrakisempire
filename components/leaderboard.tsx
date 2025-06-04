@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { RankedPlayer } from "@/types/game"
 import { STATIC_DATA } from "@/lib/game-data"
 

@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { TerritoryDetails, Resources } from "@/types/game"
 
 interface TerritoryModalProps {

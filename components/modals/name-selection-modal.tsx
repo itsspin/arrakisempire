@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useCallback } from "react" // Import useCallback
+import React, { useState, useCallback } from "react" // Import useCallback
 import { Button } from "@/components/ui/button"
 
 interface NameSelectionModalProps {

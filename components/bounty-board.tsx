@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { GameState, Resources } from "@/types/game"
 import { CONFIG } from "@/lib/constants"
 

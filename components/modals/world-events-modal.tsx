@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { WorldEvent } from "@/types/game"
 
 interface WorldEventsModalProps {

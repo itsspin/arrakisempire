@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import type { GameState, Player } from "@/types/game"
 import { CONFIG, HOUSE_COLORS } from "@/lib/constants"

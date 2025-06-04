@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 interface PauseModalProps {
   isOpen: boolean
   onResume: () => void

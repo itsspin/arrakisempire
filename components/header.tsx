@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { Player } from "@/types/game"
 import { STATIC_DATA } from "@/lib/game-data"
 import { signOut } from "firebase/auth"

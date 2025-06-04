@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { Player, Resources, Investment } from "@/types/game"
 import { CONFIG } from "@/lib/constants"
 

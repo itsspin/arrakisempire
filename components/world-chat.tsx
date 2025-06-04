@@ -1,5 +1,7 @@
 "use client";
 
+import type { ChatMessage } from "@/types/game"
+import React, { useState, useRef, useEffect } from "react"
 import type { ChatMessage } from "@/types/game";
 import type React from "react";
 import { useState, useRef, useEffect } from "react";

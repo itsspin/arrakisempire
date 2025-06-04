@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import type { Player, Equipment, Item, Ability, Resources } from "@/types/game"
 import { CONFIG, CRAFTING_RECIPES } from "@/lib/constants" // For MAX_INVENTORY and crafting costs
 import {
