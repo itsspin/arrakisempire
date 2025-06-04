@@ -796,6 +796,39 @@ export default function ArrakisGamePage() {
           })
         })
         addNotification("Your house seizes the surrounding territory!", "success")
+
+        // Penalize defeated player by removing 20% of their territories
+        if (enemyInstance.type === "player") {
+          const enemyId = enemyInstance.id
+            .replace(/^player_/, "")
+            .replace(/^owner_/, "")
+          const defeatedPlayer = currentFullGameState.onlinePlayers[enemyId]
+          if (defeatedPlayer && defeatedPlayer.territories.length > 0) {
+            const territoriesToLose = Math.max(
+              1,
+              Math.floor(defeatedPlayer.territories.length * 0.2),
+            )
+            for (let i = 0; i < territoriesToLose; i++) {
+              const lost = defeatedPlayer.territories.pop()
+              if (lost) {
+                const key = `${lost.position.x},${lost.position.y}`
+                if (newMap.territories[key]) {
+                  newMap.territories[key] = {
+                    ...newMap.territories[key],
+                    ownerId: null,
+                    ownerName: undefined,
+                    ownerColor: undefined,
+                    captureLevel: 0,
+                  }
+                }
+              }
+            }
+            addNotification(
+              `${defeatedPlayer.name} lost ${territoriesToLose} territories!`,
+              "info",
+            )
+          }
+        }
       } else if (result === "lose") {
         newPlayer.position = { ...newPlayer.basePosition }
         newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
@@ -822,6 +855,33 @@ export default function ArrakisGamePage() {
             }
             newMap.territories[terrKey] = { ...terr }
           }
+        }
+
+        // Player defeated by another player loses 20% of territories
+        if (enemyInstance.type === "player" && newPlayer.territories.length > 0) {
+          const territoriesToLose = Math.max(
+            1,
+            Math.floor(newPlayer.territories.length * 0.2),
+          )
+          for (let i = 0; i < territoriesToLose; i++) {
+            const lost = newPlayer.territories.pop()
+            if (lost) {
+              const key = `${lost.position.x},${lost.position.y}`
+              if (newMap.territories[key]) {
+                newMap.territories[key] = {
+                  ...newMap.territories[key],
+                  ownerId: null,
+                  ownerName: undefined,
+                  ownerColor: undefined,
+                  captureLevel: 0,
+                }
+              }
+            }
+          }
+          addNotification(
+            `You lost ${territoriesToLose} territories due to defeat!`,
+            "warning",
+          )
         }
       }
 
