@@ -192,6 +192,15 @@ export interface ChatMessage {
   message: string
 }
 
+export interface TradeOffer {
+  id: string
+  sellerId: string | null
+  sellerName: string
+  sellerColor: string
+  item: Item
+  price: number
+}
+
 export interface Ability {
   id: string
   name: string
@@ -221,7 +230,7 @@ export interface GameState {
   // onlinePlayers: Record<string, Partial<Player & { position: { x: number; y: number } }>> // Old
   onlinePlayers: Record<string, AIPlayer> // NEW: AIs have their own full Player state and Resources
   worldEvents: WorldEvent[]
-  tradeOffers: any[]
+  tradeOffers: TradeOffer[]
   map: {
     enemies: Record<string, Enemy>
     resources: Record<string, ResourceNode>

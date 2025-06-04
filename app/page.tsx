@@ -24,6 +24,7 @@ import { WorldChat } from "@/components/world-chat"
 import { TerritoryChart } from "@/components/territory-chart"
 import { AbilitySelectionModal } from "@/components/modals/ability-selection-modal"
 import { TradePanel } from "@/components/trade-panel"
+import { TradingModal } from "@/components/modals/trading-modal"
 import { UpdatesTab } from "@/components/updates-tab"
 import { Slider } from "@/components/ui/slider"
 import { PauseModal } from "@/components/modals/pause-modal"
@@ -43,6 +44,7 @@ import type {
   WorldEvent, // Added WorldEvent
   AIPlayer, // Added AIPlayer
   PlayerColor,
+  TradeOffer,
 } from "@/types/game"
 import { CONFIG, PLAYER_COLORS, RARITY_SCORES, HOUSE_COLORS } from "@/lib/constants"
 import { STATIC_DATA } from "@/lib/game-data"
@@ -2446,6 +2448,63 @@ export default function ArrakisGamePage() {
     setGameState((prev) => ({ ...prev, isAbilitySelectionModalOpen: false }))
   }, [])
 
+  const handleOpenTradingModal = useCallback(() => {
+    setGameState((prev) => ({ ...prev, isTradingModalOpen: true }))
+  }, [])
+
+  const handleCloseTradingModal = useCallback(() => {
+    setGameState((prev) => ({ ...prev, isTradingModalOpen: false }))
+  }, [])
+
+  const handleCreateTradeOffer = useCallback(
+    (inventoryIndex: number, price: number) => {
+      setGameState((prev) => {
+        const item = prev.inventory[inventoryIndex]
+        if (!item) return prev
+        const newInventory = [...prev.inventory]
+        newInventory[inventoryIndex] = null
+        const offer = {
+          id: `offer_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          sellerId: prev.player.id,
+          sellerName: prev.player.name,
+          sellerColor: prev.player.color,
+          item,
+          price,
+        } as TradeOffer
+        addNotification(`Listed ${item.name} for ${price} Solari.`, "success")
+        return { ...prev, inventory: newInventory, tradeOffers: [...prev.tradeOffers, offer] }
+      })
+    },
+    [addNotification],
+  )
+
+  const handleBuyTradeOffer = useCallback(
+    (offerId: string) => {
+      setGameState((prev) => {
+        const index = prev.tradeOffers.findIndex((o) => o.id === offerId)
+        if (index === -1) return prev
+        const offer = prev.tradeOffers[index]
+        if (offer.price > prev.resources.solari) {
+          addNotification("Not enough Solari to purchase!", "warning")
+          return prev
+        }
+        const newInventory = [...prev.inventory]
+        const empty = newInventory.findIndex((i) => i === null)
+        if (empty === -1) {
+          addNotification("Inventory full!", "warning")
+          return prev
+        }
+        newInventory[empty] = offer.item
+        const newResources = { ...prev.resources, solari: prev.resources.solari - offer.price }
+        const newOffers = [...prev.tradeOffers]
+        newOffers.splice(index, 1)
+        addNotification(`Purchased ${offer.item.name}!`, "success")
+        return { ...prev, inventory: newInventory, resources: newResources, tradeOffers: newOffers }
+      })
+    },
+    [addNotification],
+  )
+
   if (isLoading) return <LoadingScreen isVisible={true} />
 
   const selectedTerritory = gameState.selectedTerritoryCoords
@@ -2620,7 +2679,11 @@ export default function ArrakisGamePage() {
                 />
                 {/* WorldEventsPanel should show dynamic events */}
                 <WorldEventsPanel worldEvents={gameState.worldEvents} />
-                <TradePanel player={gameState.player} resources={gameState.resources} />
+                <TradePanel
+                  player={gameState.player}
+                  resources={gameState.resources}
+                  onOpenTrading={handleOpenTradingModal}
+                />
                 <div className="bg-stone-800 p-6 rounded-lg border border-stone-600 col-span-full">
                   {/* TerritoryChart needs to be aware of AI players for ownership */}
                   <TerritoryChart
@@ -2689,6 +2752,16 @@ export default function ArrakisGamePage() {
         onClose={handleCloseAbilitySelectionModal} // Add a close handler
         onSelect={handleSelectAbility}
         availableAbilities={availableAbilitiesForSelection}
+      />
+      <TradingModal
+        isOpen={gameState.isTradingModalOpen}
+        tradeOffers={gameState.tradeOffers}
+        inventory={gameState.inventory}
+        playerId={gameState.player.id}
+        playerSolari={gameState.resources.solari}
+        onClose={handleCloseTradingModal}
+        onCreateOffer={handleCreateTradeOffer}
+        onBuyOffer={handleBuyTradeOffer}
       />
       <PauseModal
         isOpen={gameState.isPaused}
