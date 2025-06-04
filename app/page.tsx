@@ -437,6 +437,22 @@ export default function ArrakisGamePage() {
     lastGeneralNotificationTime.current = now
   }, [])
 
+  const addWorldChatMessage = useCallback((message: string) => {
+    setGameState((prev) => ({
+      ...prev,
+      chatMessages: [
+        ...prev.chatMessages,
+        {
+          senderId: "system",
+          senderName: "System",
+          senderColor: "yellow",
+          timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+          message,
+        },
+      ],
+    }))
+  }, [])
+
   const updateQuestProgress = useCallback((type: Quest["type"], amount = 1) => {
     setGameState((prev) => {
       let quests = prev.quests.map((q) => {
@@ -762,6 +778,9 @@ export default function ArrakisGamePage() {
             if (emptySlotIndex !== -1) {
               updatedInventory[emptySlotIndex] = itemData
               addNotification(`You found a ${itemData.icon} ${itemData.name}!`, "success")
+              if (itemData.rarity === "epic" || itemData.rarity === "legendary") {
+                addWorldChatMessage(`${newPlayer.name} found an ${itemData.rarity} ${itemData.name}!`)
+              }
             } else {
               addNotification(`Inventory full! Could not pick up ${itemData.name}.`, "warning")
             }
@@ -2447,23 +2466,12 @@ export default function ArrakisGamePage() {
         const newEquipment = { ...prev.equipment }
         const newInventory = [...prev.inventory]
 
-        const currentEquippedItem = newEquipment[item.type as keyof typeof newEquipment]
+        const slot = item.type as keyof typeof newEquipment
+        const currentEquippedItem = newEquipment[slot]
 
-        // Unequip current item if slot is occupied and it's different from the new item
-        if (currentEquippedItem && currentEquippedItem.id !== item.id) {
-          const emptySlotIndex = newInventory.findIndex((slot) => slot === null)
-          if (emptySlotIndex !== -1) {
-            newInventory[emptySlotIndex] = currentEquippedItem
-            addNotification(`Unequipped ${currentEquippedItem.name}.`, "info")
-          } else {
-            addNotification("Inventory full! Cannot unequip current item.", "warning")
-            return prev // Cannot unequip, so cannot equip new item
-          }
-        }
-
-        // Equip the new item
-        newEquipment[item.type as keyof typeof newEquipment] = item
-        newInventory[inventoryIndex] = null // Remove item from inventory
+        // Swap the equipped item with the inventory item
+        newEquipment[slot] = item
+        newInventory[inventoryIndex] = currentEquippedItem || null
 
         // Update player stats based on equipped item
         newPlayer.attack = initialGameState.player.attack + (newEquipment.weapon?.attack || 0)
