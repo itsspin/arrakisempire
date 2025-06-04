@@ -2761,8 +2761,8 @@ export default function ArrakisGamePage() {
 
   const handleOpenPrestigeModal = useCallback(() => {
     setGameState((prev) => {
-      if (prev.player.level < 20) {
-        addNotification("Reach level 20 to Prestige!", "warning")
+      if (prev.player.level < 10) {
+        addNotification("Reach level 10 to Prestige!", "warning")
         return prev
       }
       return { ...prev, isPrestigeModalOpen: true }
