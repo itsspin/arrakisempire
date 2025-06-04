@@ -102,6 +102,13 @@ export interface ResourceNode extends MapElement {
   icon?: string
 }
 
+export interface Seeker extends MapElement {
+  ownerId: string
+  ownerName: string
+  ownerColor: string
+  claimTime: number
+}
+
 export interface Combat {
   active: boolean
   enemy: Enemy | null
@@ -220,6 +227,7 @@ export interface GameState {
     resources: Record<string, ResourceNode>
     territories: Record<string, TerritoryDetails>
     items: Record<string, Item>
+    seekers: Record<string, Seeker>
   }
   leaderboard: RankedPlayer[]
   isNameModalOpen: boolean
@@ -238,6 +246,7 @@ export interface GameState {
   lastWorldEventProcessingTime?: number
   // NEW: Track which territory is being contested in combat
   capturingTerritoryId?: string | null
+  lastSeekerLaunchTime?: number
 }
 
 export type PlayerColor = "red" | "blue" | "green" | "purple" | "orange" | "pink" | "yellow" | "cyan"
