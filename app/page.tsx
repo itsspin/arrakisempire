@@ -7,6 +7,7 @@ import { Header } from "@/components/header"
 import { Navigation } from "@/components/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { MapGrid } from "@/components/map-grid"
+import { MobileMovementControls } from "@/components/mobile-movement-controls"
 import { CharacterTab } from "@/components/character-tab"
 import { EmpireTab } from "@/components/empire-tab"
 import { TerritoryModal } from "@/components/modals/territory-modal"
@@ -3153,6 +3154,16 @@ export default function ArrakisGamePage() {
                   }
                   seekerLaunchTime={seekerLaunchVisualTime}
                 />
+                {isMobile && (
+                  <MobileMovementControls
+                    onMove={(dx, dy) => {
+                      const { x, y } = gameState.player.position
+                      const newX = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, x + dx))
+                      const newY = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, y + dy))
+                      attemptPlayerAction(newX, newY)
+                    }}
+                  />
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
                   <HousesPanel
