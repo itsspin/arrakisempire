@@ -199,6 +199,16 @@ export function MapGrid({
         hasBackground = true
       }
 
+      const resource = mapData.resources[key]
+      if (resource && cellContent === "") {
+        if (resource.type === 'water_cache') {
+          cellClass += ' map-cell-resource-water'
+          cellContent = resource.icon || '💧'
+          cellTitle = `Water Cache`
+          hasBackground = true
+        }
+      }
+
       if (isAdjacent) {
         cellClass += " map-cell-movable"
       }
