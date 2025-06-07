@@ -71,3 +71,25 @@ Have an idea for a new feature? Open the **Wishlist** tab in game and submit a s
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+## Local Development
+
+To run a local development server or create a production build, first install dependencies:
+
+```bash
+pnpm install
+```
+
+Then you can start the development server with:
+
+```bash
+pnpm dev
+```
+
+To generate a production build run:
+
+```bash
+pnpm run build
+pnpm start
+```
+
