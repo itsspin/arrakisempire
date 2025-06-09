@@ -12,6 +12,7 @@ interface MapGridProps {
   mapData: GameState["map"]
   onlinePlayers: GameState["onlinePlayers"]
   worldEvents: GameState["worldEvents"]
+  worm: GameState["worm"]
   onCellClick: (x: number, y: number) => void
   zoom?: number
   onZoomChange?: (zoom: number) => void
@@ -24,6 +25,7 @@ export function MapGrid({
   mapData,
   onlinePlayers,
   worldEvents,
+  worm,
   onCellClick,
   zoom = 1,
   onZoomChange,
@@ -187,6 +189,23 @@ export function MapGrid({
         cellClass += " map-cell-seeker"
         cellContent = "🛰️"
         cellTitle = `Seeker from ${seeker.ownerName}`
+        hasBackground = true
+      }
+
+      // Rock islands
+      if (mapData.rocks[key] && cellContent === "") {
+        cellClass += " map-cell-rock"
+        cellContent = "🪨"
+        cellTitle = "Rocky Outcrop"
+        hasBackground = true
+      }
+
+      // Worm segments
+      const wormSegment = worm.segments.find((s) => s.x === x && s.y === y)
+      if (wormSegment && cellContent === "") {
+        cellClass += " map-cell-sandworm"
+        cellContent = "🐛"
+        cellTitle = "Sandworm"
         hasBackground = true
       }
 
