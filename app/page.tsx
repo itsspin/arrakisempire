@@ -230,6 +230,7 @@ const generateInitialWorm = (): Worm => {
     segments.push({ x: Math.max(0, x - i), y })
   }
   return { segments, targetPlayerId: null }
+}
 const generateWaterCaches = (): Record<string, ResourceNode> => {
   const caches: Record<string, ResourceNode> = {}
   const numCaches = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.001)
