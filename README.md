@@ -80,6 +80,7 @@ To run a local development server or create a production build, first install de
 pnpm install
 ```
 
+This project requires **Node.js 18** or newer. You can set the Node version locally with `.nvmrc` 
 Then you can start the development server with:
 
 ```bash
