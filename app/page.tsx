@@ -7,6 +7,7 @@ import { Header } from "@/components/header"
 import { Navigation } from "@/components/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { MapGrid } from "@/components/map-grid"
+import { MobileMovementControls } from "@/components/mobile-movement-controls"
 import { CharacterTab } from "@/components/character-tab"
 import { EmpireTab } from "@/components/empire-tab"
 import { TerritoryModal } from "@/components/modals/territory-modal"
@@ -229,6 +230,22 @@ const generateInitialWorm = (): Worm => {
     segments.push({ x: Math.max(0, x - i), y })
   }
   return { segments, targetPlayerId: null }
+const generateWaterCaches = (): Record<string, ResourceNode> => {
+  const caches: Record<string, ResourceNode> = {}
+  const numCaches = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.001)
+  for (let i = 0; i < numCaches; i++) {
+    const { x, y } = getRandomMapCoords()
+    const key = `${x},${y}`
+    if (caches[key]) continue
+    caches[key] = {
+      id: `water_${x}_${y}`,
+      type: 'water_cache',
+      amount: 20,
+      icon: '💧',
+      position: { x, y },
+    }
+  }
+  return caches
 }
 
 const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => {
@@ -273,6 +290,7 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     isDefending: false,
     xpBuffMultiplier: 1,
     xpBuffExpires: null,
+    speedBoostExpires: null,
   }
 }
 
@@ -288,7 +306,7 @@ const getInitialResourcesState = (): Resources => ({
 
 const initialMapData = {
   enemies: generateMockEnemies(),
-  resources: {},
+  resources: generateWaterCaches(),
   territories: generateMockTerritories(),
   items: generateMockItems(),
   seekers: {},
@@ -1516,6 +1534,10 @@ export default function ArrakisGamePage() {
           newPlayer.xpBuffExpires = null
           newNotifications.push({ id: now.toString(), message: "XP Buff expired", type: "info" })
         }
+        if (newPlayer.speedBoostExpires && now >= newPlayer.speedBoostExpires) {
+          newPlayer.speedBoostExpires = null
+          newNotifications.push({ id: now.toString(), message: "Speed boost expired", type: "info" })
+        }
 
         // --- 1. Player Stat Regen & Income (mostly existing logic) ---
         if (now - prev.lastEnergyRegen >= CONFIG.ENERGY_REGEN_INTERVAL) {
@@ -2219,9 +2241,11 @@ export default function ArrakisGamePage() {
         )
 
         const isMoving = dx !== 0 || dy !== 0
+        const maxStep =
+          player.speedBoostExpires && player.speedBoostExpires > Date.now() ? 2 : 1
 
-        if (isMoving && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
-          addNotification("You can only move to adjacent tiles!", "warning")
+        if (isMoving && (Math.abs(dx) > maxStep || Math.abs(dy) > maxStep)) {
+          addNotification(`You can only move up to ${maxStep} tiles!`, "warning")
           return prev
         }
         if (aiPlayerOnCell && (dx !== 0 || dy !== 0)) {
@@ -2279,7 +2303,8 @@ export default function ArrakisGamePage() {
           // Sandwalk reduces water cost
           waterCost = Math.max(0.1, waterCost - waterCost * (player.activeAbility.effectValue / 100)) // Ensure it costs at least a bit
         }
-        waterCost = Math.round(waterCost * 10) / 10 // Round to one decimal
+        const distance = Math.max(Math.abs(dx), Math.abs(dy))
+        waterCost = Math.round(waterCost * distance * 10) / 10 // Round to one decimal
 
         if (isMoving && resources.water < waterCost) {
           addNotification(`Not enough water to move (cost: ${waterCost})!`, "warning")
@@ -2408,6 +2433,14 @@ export default function ArrakisGamePage() {
           }
         }
 
+        const resourceOnCell = map.resources[key]
+        if (resourceOnCell && resourceOnCell.type === 'water_cache') {
+          newResources.water += resourceOnCell.amount
+          newPlayer.speedBoostExpires = Date.now() + 5000
+          delete newMap.resources[key]
+          addNotification(`Collected water cache! Speed boosted for 5s.`, 'success')
+        }
+
         let resultState: GameState = {
           ...prev,
           player: newPlayer,
@@ -2446,27 +2479,32 @@ export default function ArrakisGamePage() {
         return
       }
 
+      const step =
+        gameStateRef.current.player.speedBoostExpires &&
+        gameStateRef.current.player.speedBoostExpires > Date.now()
+          ? 2
+          : 1
       let { x, y } = gameStateRef.current.player.position // Use ref here
       let moved = false
       switch (event.key.toLowerCase()) {
         case "w":
         case "arrowup":
-          y--
+          y -= step
           moved = true
           break
         case "s":
         case "arrowdown":
-          y++
+          y += step
           moved = true
           break
         case "a":
         case "arrowleft":
-          x--
+          x -= step
           moved = true
           break
         case "d":
         case "arrowright":
-          x++
+          x += step
           moved = true
           break
         default:
@@ -3116,6 +3154,16 @@ export default function ArrakisGamePage() {
                   }
                   seekerLaunchTime={seekerLaunchVisualTime}
                 />
+                {isMobile && (
+                  <MobileMovementControls
+                    onMove={(dx, dy) => {
+                      const { x, y } = gameState.player.position
+                      const newX = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, x + dx))
+                      const newY = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, y + dy))
+                      attemptPlayerAction(newX, newY)
+                    }}
+                  />
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <Leaderboard topPlayers={gameState.leaderboard} />
                   <HousesPanel
