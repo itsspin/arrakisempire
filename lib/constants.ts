@@ -57,6 +57,10 @@ export const CONFIG = {
   XP_GAIN_BUILD_BASE: 10,
   XP_GAIN_CRAFT: 5,
   BASE_RADIUS: 2, // New constant for base area
+  MAX_HEAT: 100,
+  HEAT_INCREASE_PER_MOVE: 5,
+  HEAT_DECAY_PER_TICK: 2,
+  HEAT_WATER_MULTIPLIER: 0.01,
 }
 
 export const PLAYER_COLORS = ["red", "blue", "green", "purple", "orange", "pink", "yellow", "cyan"]

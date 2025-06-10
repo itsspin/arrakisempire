@@ -67,13 +67,15 @@ body {
   --cell-size: 36px;
   display: grid;
   grid-template-columns: repeat(var(--map-columns), var(--cell-size));
-  gap: 1px;
-  background: linear-gradient(45deg, #451a03, #1c1917);
-  border: 2px solid #f59e0b;
-  border-radius: 8px;
-  padding: 8px;
+  gap: 2px;
+  background: linear-gradient(135deg, #92400e, #1c1917);
+  background-size: 300% 300%;
+  animation: map-pan 15s ease infinite;
+  border: 3px solid #fbbf24;
+  border-radius: 12px;
+  padding: 12px;
   margin: 0 auto;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.5);
   width: calc(var(--cell-size) * var(--map-columns));
   max-width: 100%;
   overflow-x: auto;
@@ -100,8 +102,9 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  background: linear-gradient(135deg, #78350f, #451a03);
+  background: linear-gradient(135deg, #d97706, #92400e);
   color: #fed7aa; /* Default text color for desert cells */
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
 }
 
 
@@ -363,6 +366,18 @@ body {
   }
   50% {
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.9);
+  }
+}
+
+@keyframes map-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 

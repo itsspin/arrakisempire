@@ -9,6 +9,10 @@
     "lint": "next lint"
   },
   "engines": {
+ndvfro-codex/fix-json-parsing-error-in-package.json
+    "node": "18.x"
+  },
+  "engines": {
     "node": ">=18"
   },
   "dependencies": {

@@ -2,6 +2,7 @@
 
 import React from "react"
 import type { Player } from "@/types/game"
+import { CONFIG } from "@/lib/constants"
 
 interface PlayerStatsPanelProps {
   player: Player
@@ -11,6 +12,7 @@ export function PlayerStatsPanel({ player }: PlayerStatsPanelProps) {
   const playerHealthPercent = (player.health / player.maxHealth) * 100
   const playerEnergyPercent = (player.energy / player.maxEnergy) * 100
   const playerXPPercent = (player.experience / player.experienceToNext) * 100
+  const playerHeatPercent = (player.heat / CONFIG.MAX_HEAT) * 100
 
   return (
     <div className="bg-stone-700 p-4 rounded-lg border border-blue-500">
@@ -39,6 +41,17 @@ export function PlayerStatsPanel({ player }: PlayerStatsPanelProps) {
           </div>
           <div className="progress-bar-bg rounded h-3">
             <div className="bg-blue-500 h-full rounded" style={{ width: `${playerEnergyPercent}%` }}></div>
+          </div>
+        </div>
+        <div className="p-2 bg-stone-600 rounded">
+          <div className="flex justify-between mb-1">
+            <span>Heat:</span>
+            <span className="font-mono">
+              {player.heat}/{CONFIG.MAX_HEAT}
+            </span>
+          </div>
+          <div className="progress-bar-bg rounded h-3">
+            <div className="bg-orange-500 h-full rounded" style={{ width: `${playerHeatPercent}%` }}></div>
           </div>
         </div>
         <div className="p-2 bg-stone-600 rounded">

@@ -229,6 +229,7 @@ const generateInitialWorm = (): Worm => {
   for (let i = 0; i < 5; i++) {
     segments.push({ x: Math.max(0, x - i), y })
   }
+  return { segments, targetPlayerId: null, spawnCountdown: null }
   return { segments, targetPlayerId: null }
 }
 const generateWaterCaches = (): Record<string, ResourceNode> => {
@@ -292,6 +293,7 @@ const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => 
     xpBuffMultiplier: 1,
     xpBuffExpires: null,
     speedBoostExpires: null,
+    heat: 0,
   }
 }
 
@@ -1553,6 +1555,8 @@ export default function ArrakisGamePage() {
           const healthRegenAmount = Math.floor(newPlayer.maxHealth * (newPlayer.activeAbility.effectValue / 100))
           newPlayer.health = Math.min(newPlayer.maxHealth, newPlayer.health + healthRegenAmount)
         }
+        const heatDecayMultiplier = isInBaseArea(newPlayer, newPlayer.position.x, newPlayer.position.y) ? 2 : 1
+        newPlayer.heat = Math.max(0, newPlayer.heat - CONFIG.HEAT_DECAY_PER_TICK * heatDecayMultiplier)
 
         let territorySpiceIncomeBoost = 1.0
         if (newWorldEvents.some((event) => event.effect === "spice_boost" && event.endTime && event.endTime > now)) {
@@ -2017,6 +2021,35 @@ export default function ArrakisGamePage() {
 
         // --- Big Worm NPC ---
         const rockCells = newMap.rocks
+
+        // Spawn worm near the player if they are far from rocks
+        if (!newWorm.targetPlayerId && newWorm.spawnCountdown === null) {
+          if (!isNearRock(newPlayer.position.x, newPlayer.position.y, rockCells) && Math.random() < 0.05) {
+            const spawnX = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, newPlayer.position.x + getRandomInt(-5, 5)))
+            const spawnY = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, newPlayer.position.y + getRandomInt(-5, 5)))
+            newWorm.segments = []
+            for (let i = 0; i < 5; i++) {
+              newWorm.segments.push({ x: Math.max(0, spawnX - i), y: spawnY })
+            }
+            newWorm.targetPlayerId = newPlayer.id
+            newWorm.spawnCountdown = 3
+            newNotifications.push({
+              id: (now + 0.5).toString(),
+              message: "Worm sign! It will attack soon!",
+              type: "warning",
+            })
+          }
+        }
+
+        // Countdown before the worm begins chasing
+        if (newWorm.spawnCountdown !== null) {
+          newWorm.spawnCountdown -= 1
+          if (newWorm.spawnCountdown <= 0) {
+            newWorm.spawnCountdown = null
+          }
+        }
+
+        if (newWorm.targetPlayerId && newWorm.spawnCountdown === null) {
         if (!newWorm.targetPlayerId && Math.random() < 0.01) {
           const candidates = [newPlayer, ...Object.values(newOnlinePlayers)].filter(
             (p) => p.id && !isNearRock(p.position.x, p.position.y, rockCells),
@@ -2305,6 +2338,10 @@ export default function ArrakisGamePage() {
           // Sandwalk reduces water cost
           waterCost = Math.max(0.1, waterCost - waterCost * (player.activeAbility.effectValue / 100)) // Ensure it costs at least a bit
         }
+        if (player.house === "fremen") {
+          waterCost *= 0.4
+        }
+        waterCost *= 1 + player.heat * CONFIG.HEAT_WATER_MULTIPLIER
         const distance = Math.max(Math.abs(dx), Math.abs(dy))
         waterCost = Math.round(waterCost * distance * 10) / 10 // Round to one decimal
 
@@ -2321,6 +2358,7 @@ export default function ArrakisGamePage() {
         if (isMoving) {
           newPlayer.position = { x: targetX, y: targetY }
           newResources.water -= waterCost
+          newPlayer.heat = Math.min(CONFIG.MAX_HEAT, newPlayer.heat + CONFIG.HEAT_INCREASE_PER_MOVE * distance)
           newPlayer.lastActive = Date.now()
           sandwormAttackTime = null
         }
@@ -2438,6 +2476,7 @@ export default function ArrakisGamePage() {
         const resourceOnCell = map.resources[key]
         if (resourceOnCell && resourceOnCell.type === 'water_cache') {
           newResources.water += resourceOnCell.amount
+          newPlayer.heat = Math.max(0, newPlayer.heat - CONFIG.MAX_HEAT * 0.5)
           newPlayer.speedBoostExpires = Date.now() + 5000
           delete newMap.resources[key]
           addNotification(`Collected water cache! Speed boosted for 5s.`, 'success')
@@ -2871,6 +2910,7 @@ export default function ArrakisGamePage() {
       if (newPlayer.energy >= CONFIG.COLLECT_WATER_ENERGY_COST) {
         newPlayer.energy -= CONFIG.COLLECT_WATER_ENERGY_COST
         newResources.water += CONFIG.COLLECT_WATER_YIELD
+        newPlayer.heat = Math.max(0, newPlayer.heat - CONFIG.HEAT_DECAY_PER_TICK * 5)
         applyXpGain(newPlayer, CONFIG.XP_GAIN_GATHER)
         addNotification(`Collected ${CONFIG.COLLECT_WATER_YIELD} Water!`, "success")
       } else {

@@ -40,6 +40,7 @@ export interface Player {
   xpBuffExpires?: number | null
   /** Timestamp until which the player can move two squares at a time */
   speedBoostExpires?: number | null
+  heat: number
   // NEW: For AI resource tracking, we will add 'resources' directly to the AI player object in GameState.onlinePlayers.
   // No change to Player type itself is strictly needed if AIs in onlinePlayers are Partial<Player> & {resources: Resources}
   equipment?: Equipment // Added for AI ranking
@@ -237,6 +238,8 @@ export type AIPlayer = Player & { resources: Resources }
 export interface Worm {
   segments: { x: number; y: number }[]
   targetPlayerId: string | null
+  /** Number of ticks before the worm begins chasing its target */
+  spawnCountdown: number | null
 }
 
 export interface GameState {
