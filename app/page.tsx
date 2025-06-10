@@ -72,6 +72,15 @@ const getRandomMapCoords = (mapWidth = CONFIG.MAP_SIZE, mapHeight = CONFIG.MAP_S
   return { x, y }
 }
 
+const isNearRock = (x: number, y: number, rocks: Record<string, boolean>) => {
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (rocks[`${x + dx},${y + dy}`]) return true
+    }
+  }
+  return false
+}
+
 // ---- Quest Generation ----
 const createRandomQuest = (): Quest => {
   const types: Quest["type"][] = ["kill", "territory", "move", "build"]
@@ -197,6 +206,31 @@ const generateMockEnemies = (): Record<string, Enemy> => {
   return enemies
 }
 
+const generateRockIslands = (): Record<string, boolean> => {
+  const rocks: Record<string, boolean> = {}
+  const numIslands = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.002)
+  for (let i = 0; i < numIslands; i++) {
+    const { x, y } = getRandomMapCoords()
+    for (let dx = 0; dx < 2; dx++) {
+      for (let dy = 0; dy < 2; dy++) {
+        const rx = Math.min(CONFIG.MAP_SIZE - 1, x + dx)
+        const ry = Math.min(CONFIG.MAP_SIZE - 1, y + dy)
+        rocks[`${rx},${ry}`] = true
+      }
+    }
+  }
+  return rocks
+}
+
+const generateInitialWorm = (): Worm => {
+  const { x, y } = getRandomMapCoords()
+  const segments = [] as { x: number; y: number }[]
+  for (let i = 0; i < 5; i++) {
+    segments.push({ x: Math.max(0, x - i), y })
+  }
+  return { segments, targetPlayerId: null, spawnCountdown: null }
+}
+
 const getInitialPlayerState = (id: string | null, prestigeLevel = 0): Player => {
   // Unchanged
   const initialPosition = getRandomMapCoords()
@@ -258,6 +292,7 @@ const initialMapData = {
   territories: generateMockTerritories(),
   items: generateMockItems(),
   seekers: {},
+  rocks: generateRockIslands(),
 }
 
 // Function to create an AI player with initial state
@@ -339,6 +374,7 @@ const initialGameState: GameState = {
   ],
   tradeOffers: [],
   map: initialMapData,
+  worm: generateInitialWorm(),
   leaderboard: generateMockLeaderboard(), // This will be populated dynamically
   isNameModalOpen: true,
   isHouseModalOpen: false,
@@ -623,7 +659,9 @@ export default function ArrakisGamePage() {
               ...initialMapData,
               territories: newMapTerritories,
               seekers: savedState.map?.seekers || {},
+              rocks: initialMapData.rocks,
             },
+            worm: generateInitialWorm(),
             onlinePlayers: updatedOnlinePlayers, // Use updated AIs
             unlockedAbilities: savedState.player.unlockedAbilities || [],
             activeAbility: savedState.player.activeAbility || null,
@@ -1303,7 +1341,9 @@ export default function ArrakisGamePage() {
           ...initialMapData,
           territories: newMapTerritories, // Use the new map with reset/reassigned territories
           seekers: {},
+          rocks: initialMapData.rocks,
         },
+        worm: generateInitialWorm(),
         onlinePlayers: newOnlinePlayers, // Update online players with new territories
         isPrestigeModalOpen: false,
         combat: initialGameState.combat, // Reset combat state
@@ -1469,6 +1509,7 @@ export default function ArrakisGamePage() {
         let newWorldEvents = [...prev.worldEvents]
         const newOnlinePlayers = JSON.parse(JSON.stringify(prev.onlinePlayers)) // Deep copy for AI modifications
         let sandwormAttackTime = prev.sandwormAttackTime
+        let newWorm = { ...prev.worm }
 
         if (newPlayer.xpBuffExpires && now >= newPlayer.xpBuffExpires) {
           newPlayer.xpBuffMultiplier = 1
@@ -1947,7 +1988,97 @@ export default function ArrakisGamePage() {
           newPlayer.health = Math.floor(newPlayer.maxHealth / 2)
           newNotifications.push({ id: (now + 1).toString(), message: "A sandworm devours you!", type: "legendary" })
           newNotifications.push({ id: (now + 2).toString(), message: "You respawned in a random location.", type: "info" })
-          sandwormAttackTime = null
+        sandwormAttackTime = null
+      }
+
+        // --- Big Worm NPC ---
+        const rockCells = newMap.rocks
+
+        // Spawn worm near the player if they are far from rocks
+        if (!newWorm.targetPlayerId && newWorm.spawnCountdown === null) {
+          if (!isNearRock(newPlayer.position.x, newPlayer.position.y, rockCells) && Math.random() < 0.05) {
+            const spawnX = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, newPlayer.position.x + getRandomInt(-5, 5)))
+            const spawnY = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, newPlayer.position.y + getRandomInt(-5, 5)))
+            newWorm.segments = []
+            for (let i = 0; i < 5; i++) {
+              newWorm.segments.push({ x: Math.max(0, spawnX - i), y: spawnY })
+            }
+            newWorm.targetPlayerId = newPlayer.id
+            newWorm.spawnCountdown = 3
+            newNotifications.push({
+              id: (now + 0.5).toString(),
+              message: "Worm sign! It will attack soon!",
+              type: "warning",
+            })
+          }
+        }
+
+        // Countdown before the worm begins chasing
+        if (newWorm.spawnCountdown !== null) {
+          newWorm.spawnCountdown -= 1
+          if (newWorm.spawnCountdown <= 0) {
+            newWorm.spawnCountdown = null
+          }
+        }
+
+        if (newWorm.targetPlayerId && newWorm.spawnCountdown === null) {
+          const target =
+            newWorm.targetPlayerId === newPlayer.id
+              ? newPlayer
+              : newOnlinePlayers[newWorm.targetPlayerId]
+          if (target) {
+            if (isNearRock(target.position.x, target.position.y, rockCells)) {
+              if (newWorm.targetPlayerId === newPlayer.id) {
+                newNotifications.push({
+                  id: (now + 0.6).toString(),
+                  message: "You reached the rocks and the worm lost you.",
+                  type: "info",
+                })
+              }
+              newWorm.targetPlayerId = null
+            } else {
+              const head = { ...newWorm.segments[0] }
+              const dx = Math.sign(target.position.x - head.x)
+              const dy = Math.sign(target.position.y - head.y)
+              const newHead = {
+                x: Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, head.x + dx)),
+                y: Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, head.y + dy)),
+              }
+              newWorm.segments.unshift(newHead)
+              if (newWorm.segments.length > 6) newWorm.segments.pop()
+              if (newHead.x === target.position.x && newHead.y === target.position.y) {
+                if (newWorm.targetPlayerId === newPlayer.id) {
+                  newPlayer.health = Math.floor(newPlayer.health / 2)
+                  newPlayer.position = getRandomMapCoords()
+                  newNotifications.push({
+                    id: (now + 0.7).toString(),
+                    message: "The worm caught you!",
+                    type: "error",
+                  })
+                } else if (newOnlinePlayers[newWorm.targetPlayerId]) {
+                  newOnlinePlayers[newWorm.targetPlayerId].position = getRandomMapCoords()
+                }
+                newWorm.targetPlayerId = null
+              }
+            }
+          } else {
+            newWorm.targetPlayerId = null
+          }
+        } else {
+          const head = { ...newWorm.segments[0] }
+          const dirs = [
+            { x: 1, y: 0 },
+            { x: -1, y: 0 },
+            { x: 0, y: 1 },
+            { x: 0, y: -1 },
+          ]
+          const dir = dirs[getRandomInt(0, dirs.length - 1)]
+          const newHead = {
+            x: Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, head.x + dir.x)),
+            y: Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, head.y + dir.y)),
+          }
+          newWorm.segments.unshift(newHead)
+          if (newWorm.segments.length > 6) newWorm.segments.pop()
         }
 
         // --- Update player rank, ability cooldowns (existing logic) ---
@@ -2035,6 +2166,7 @@ export default function ArrakisGamePage() {
           abilityCooldowns: newAbilityCooldowns,
           notifications: newNotifications, // Persist notifications from this tick
           sandwormAttackTime,
+          worm: newWorm,
         }
       })
     }, 1000) // Main game tick interval (1 second)
@@ -2984,6 +3116,7 @@ export default function ArrakisGamePage() {
                   mapData={gameState.map}
                   onlinePlayers={gameState.onlinePlayers} // Pass AI players
                   worldEvents={gameState.worldEvents} // Pass dynamic world events
+                  worm={gameState.worm}
                   onCellClick={handleMapCellClick}
                   zoom={zoom}
                   onZoomChange={setZoom}

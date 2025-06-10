@@ -232,6 +232,13 @@ export interface Quest {
 // Modified onlinePlayers to include full Player type and their own Resources
 export type AIPlayer = Player & { resources: Resources }
 
+export interface Worm {
+  segments: { x: number; y: number }[]
+  targetPlayerId: string | null
+  /** Number of ticks before the worm begins chasing its target */
+  spawnCountdown: number | null
+}
+
 export interface GameState {
   player: Player
   resources: Resources
@@ -253,7 +260,9 @@ export interface GameState {
     territories: Record<string, TerritoryDetails>
     items: Record<string, Item>
     seekers: Record<string, Seeker>
+    rocks: Record<string, boolean>
   }
+  worm: Worm
   leaderboard: RankedPlayer[]
   isNameModalOpen: boolean
   isHouseModalOpen: boolean

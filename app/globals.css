@@ -235,6 +235,11 @@ body {
   color: white !important;
 }
 
+.map-cell-rock {
+  background: linear-gradient(135deg, #78716c, #57534e) !important;
+  color: white !important;
+}
+
 .map-cell-desert {
   background: linear-gradient(135deg, #c2b280, #a1887f) !important; /* Sandy desert colors */
   color: #5d4037 !important; /* Darker color for default desert icons if any */
