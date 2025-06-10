@@ -229,6 +229,7 @@ const generateInitialWorm = (): Worm => {
   for (let i = 0; i < 5; i++) {
     segments.push({ x: Math.max(0, x - i), y })
   }
+  return { segments, targetPlayerId: null, spawnCountdown: null }
   return { segments, targetPlayerId: null }
 const generateWaterCaches = (): Record<string, ResourceNode> => {
   const caches: Record<string, ResourceNode> = {}
@@ -2015,6 +2016,35 @@ export default function ArrakisGamePage() {
 
         // --- Big Worm NPC ---
         const rockCells = newMap.rocks
+
+        // Spawn worm near the player if they are far from rocks
+        if (!newWorm.targetPlayerId && newWorm.spawnCountdown === null) {
+          if (!isNearRock(newPlayer.position.x, newPlayer.position.y, rockCells) && Math.random() < 0.05) {
+            const spawnX = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, newPlayer.position.x + getRandomInt(-5, 5)))
+            const spawnY = Math.max(0, Math.min(CONFIG.MAP_SIZE - 1, newPlayer.position.y + getRandomInt(-5, 5)))
+            newWorm.segments = []
+            for (let i = 0; i < 5; i++) {
+              newWorm.segments.push({ x: Math.max(0, spawnX - i), y: spawnY })
+            }
+            newWorm.targetPlayerId = newPlayer.id
+            newWorm.spawnCountdown = 3
+            newNotifications.push({
+              id: (now + 0.5).toString(),
+              message: "Worm sign! It will attack soon!",
+              type: "warning",
+            })
+          }
+        }
+
+        // Countdown before the worm begins chasing
+        if (newWorm.spawnCountdown !== null) {
+          newWorm.spawnCountdown -= 1
+          if (newWorm.spawnCountdown <= 0) {
+            newWorm.spawnCountdown = null
+          }
+        }
+
+        if (newWorm.targetPlayerId && newWorm.spawnCountdown === null) {
         if (!newWorm.targetPlayerId && Math.random() < 0.01) {
           const candidates = [newPlayer, ...Object.values(newOnlinePlayers)].filter(
             (p) => p.id && !isNearRock(p.position.x, p.position.y, rockCells),

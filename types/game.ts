@@ -237,6 +237,8 @@ export type AIPlayer = Player & { resources: Resources }
 export interface Worm {
   segments: { x: number; y: number }[]
   targetPlayerId: string | null
+  /** Number of ticks before the worm begins chasing its target */
+  spawnCountdown: number | null
 }
 
 export interface GameState {
