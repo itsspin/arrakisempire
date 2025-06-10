@@ -230,6 +230,7 @@ const generateInitialWorm = (): Worm => {
     segments.push({ x: Math.max(0, x - i), y })
   }
   return { segments, targetPlayerId: null }
+}
 const generateWaterCaches = (): Record<string, ResourceNode> => {
   const caches: Record<string, ResourceNode> = {}
   const numCaches = Math.floor(CONFIG.MAP_SIZE * CONFIG.MAP_SIZE * 0.001)
@@ -510,7 +511,7 @@ export default function ArrakisGamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [availableAbilitiesForSelection, setAvailableAbilitiesForSelection] = useState<Ability[]>([])
   const [zoom, setZoom] = useState(1.2)
-  const [user, setUser] = useState(() => auth.currentUser)
+  const [user, setUser] = useState(() => auth?.currentUser ?? null)
   const [seekerLaunchVisualTime, setSeekerLaunchVisualTime] = useState(0)
   const isMobile = useIsMobile()
 
@@ -522,6 +523,7 @@ export default function ArrakisGamePage() {
 
   // All hooks must be declared unconditionally at the top level
   useEffect(() => {
+    if (!auth) return
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
     return () => unsub()
   }, [])
