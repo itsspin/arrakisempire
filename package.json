@@ -6,9 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-  "lint": "next lint"
+    "lint": "next lint"
   },
   "engines": {
+ndvfro-codex/fix-json-parsing-error-in-package.json
     "node": "18.x"
   },
   "engines": {
