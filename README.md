@@ -82,7 +82,7 @@ pnpm install
 
 This project requires **Node.js 18** or newer. You can set the Node version locally with `.nvmrc` or your preferred version manager.
 
-This project requires **Node.js 18** or newer. You can set the Node version locally with `.nvmrc` 
+Copy `.env.example` to `.env` and fill in your Firebase credentials before building or running locally.
 Then you can start the development server with:
 
 ```bash
